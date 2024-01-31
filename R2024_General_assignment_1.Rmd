@@ -1,0 +1,545 @@
+---
+title: "General Assignment 1"
+subtitle: "Analysis of RNA-seq timecourse experiment"
+author: "Bar Cohen"
+date: "Feb 2024"
+output:
+  html_document:
+    highlight: tango
+    number_sections: yes
+    theme: readable
+    toc: yes
+    toc_depth: 1
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- Headers -->
+<style type="text/css">
+  h1{ font-size: 22pt; }
+  h2{ font-size: 16pt; }
+  h3{ font-size: 14pt; }
+  h4{ font-size: 12pt; }
+  h5{ font-size: 10pt;  }
+  h6{ font-size: 10pt;  }
+  .credits{ 
+    color: blue;
+    font-size: 18pt; 
+    font-weight: bold;
+  }
+
+</style>
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, 
+                      collapse = TRUE, 
+                      tidy=TRUE, 
+                      fig.align = 'center', 
+                      fig.height=7, 
+                      fig.width=7)
+```
+***
+
+# Instructions (README FIRST) {.tabset}
+
+## Dataset Description
+
+**Expression profiling data of mouse cells**
+
+Manually download the file *"Assignment1-DendriticCellsDataset.txt"* and 
+save it to your working directory where your Rmd document should also be saved.
+*The dataset file is located on the Moodle.*
+
+The dataset contains measurements of gene expression upon exposure of mouse 
+dendritic cells to lipopolysaccharide (LPS).
+LPS is present on the outer membrane of gram negative bacteria, and dendritic 
+cells elicit a strong immune response upon exposure to it.
+
+The measured variables are the gene expression profile following LPS exposure by 
+RNA-seq for:
+
+- **unexposed cells (time point 0)**
+- **cells after 3 hours** 
+- **cells after 6 hours**
+
+Each measurement is obtained for three independent biological replicates.
+
+## Submission Guidelines
+
+**Before submitting your answer to this assignment, make sure:**
+
+- To change the author field in the header of the Rmarkdown document to your name.
+- All plots have self-explanatory titles (or captions below).
+- Axes are properly labeled.
+- Values are represented in appropriate scale.
+- Try to add a legend if you are using colors (whenever possible).
+- Overall, plots should be readable and the data should be clearly shown.
+- Your answers are stored in the `ANSWERX` objects where X stands for the 
+  respective question number, and that the answer is printed at the end of the document after knitting.
+
+
+## Good Practice & Tips
+**Good practice and tips for code readability:**
+
+- DO NOT use absolute path to a file! (like "C:/Users/me/path/to/a/folder/the/TA/doesnt/have").
+- DO NOT set the working directory using a command line. Everything should work
+  from the place you run the code and place all the necessary files in the same folder.
+- Read the assignment instructions through the end before starting.
+- Try to follow the rule of 1 line of code = 1 operation.
+- Variable names should be concise (<15 characters), informative and consistent.
+
+***
+
+\newpage
+
+---
+
+
+# Setup & Data Preparation (10%)
+
+- Load the following packages: `pheatmap`,`ggplot2`,`reshape2`,`gridExtra`,`plotly` 
+- You may need to install some packages.
+
+**If you have not installed them yet, install them on your machine but DO NOT keep the command for installation in the submitted code.**
+
+## Read the delimited file "Assignment1-DendriticCellsDataset.txt" 
+
+- Store the content of the tabulated file into a dataframe object called `DATA`
+
+```{r, load-expdata,message=F}
+library(pheatmap)
+library(ggplot2)
+library(reshape2)
+library(gridExtra)
+library(plotly)
+DATA = read.table("Assignment1-DendriticCellsDataset.txt", 
+                 stringsAsFactors = FALSE,header=TRUE)
+```
+
+## Describe the dataset by answering questions Q1, Q2 and Q3
+**Q1** *How many rows and columns does the data have?*
+
+**Q2** *What do the rows and columns represent in this dataset?*
+
+**Q3** *What class of data is found in each column?*
+
+
+```{r ANSWERS 1-3}
+ANSWER1 = "the data has 14 columns (which are the samples) and 28416 rows(which are the genes)"
+ANSWER2 = "columns represent the samples and rows represent the genes"
+ANSWER3 = "the first column is the gene id, the second column is the gene expression in the first sample, the third column is the gene expression in the second sample and so on. the last column is the gene description
+                                                                                  Colname     class
+                                                      1                                 id   integer
+                                                      2  Lib151Humandendritic0hrLPSrep1_IP   numeric
+                                                      3  Lib151Humandendritic0hrLPSrep2_IP   numeric
+                                                      4  Lib151Humandendritic0hrLPSrep3_IP   numeric
+                                                      5  Lib151Humandendritic3hrLPSrep1_IP   numeric
+                                                      6  Lib151Humandendritic3hrLPSrep2_IP   numeric
+                                                      7  Lib151Humandendritic3hrLPSrep3_IP   numeric
+                                                      8  Lib151Humandendritic6hrLPSrep1_IP   numeric
+                                                      9  Lib151Humandendritic6hrLPSrep2_IP   numeric
+                                                      10 Lib151Humandendritic6hrLPSrep3_IP   numeric
+                                                      11                        geneSymbol character
+                                                      12                              name character
+                                                      13                              desc character
+                                                      14                          txLength   integer"
+```
+
+## Change the column and row names for easier handling.
+
+- Rename the rows to the UCSC gene names (column 'name')
+- Rename the column names to a short easy to read version as described:
+*For example, RNA-seq data of* **D***endritic* **C***ells with LPS stimulation at* **t=0** **t=3hrs** *and at* **t=6hrs** *with* **3 replicates** *, columns could be:*
+`c("DC.0hr.r1"","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1"","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1"","DC.6hr.r2","DC.6hr.r3")`
+
+**Hint: Combine the use of functions `rep()` and `paste()` to generate the corresponding vector of names**
+
+For the next tasks, we will focus only on expression data.
+
+- Subset the dataframe and keep only columns with expression date and store it 
+as a separate dataframe named raw.data. 
+
+Make sure to keep the integrity of the data at all times (no sorting or deletion of rows), and maintain the row names as in the original dataset.
+
+```{r rename-data}
+RepNameFunction <- function(x) {
+  NewName <- names(x)
+  if (any(grepl("Lib*", NewName))) {
+    NewName <- NewName %>%
+      gsub("Lib151Humandendritic", "DC.", .) %>%
+      gsub("LPSrep*", "pop", .) %>%
+      gsub("pop", ".r", .) %>%
+      gsub("_IP", "", .)
+  } else {
+    OriName <- NewName
+  }
+  
+  names(x) <- NewName
+  return(x)
+}
+DATA <- RepNameFunction(DATA)
+```
+
+***
+
+# Data preprocessing : Visualization (20%)
+
+## Correlation of gene expression
+
+A good first view of our gene-expression data can be done by looking at the 
+correlation matrix of the samples. That is, how correlated are the measurements 
+in the different samples? If our experiment was done correctly, and our effect 
+is strong enough to elicit differences between treatments, we expect that replicate samples have higher correlation with each other than with different treatment group samples.
+
+**Pearson correlation** evaluates the linear relationship between two continuous variables.
+
+**Spearman correlation** evaluates the monotonic relationship and is based on the ranked values for each variable rather than the raw data
+
+- Compute the correlation matrix of gene expression across all samples and 
+replicates using **BOTH** the pearson and spearman correlations. 
+- Draw two heatmaps using the correlation matrixes of expression values (Pearson and Spearman) with the 
+function `pheatmap()` from the package ***pheatmap***.
+
+*hint: Use functions `cor(method = x)`, `pheatmap()`*
+
+**Q4** If you were to exclude one replicate from one time point based on the Pearson correlation, which would you exclude?
+
+```{r plot-cor}
+"YOUR_CODE"
+ANSWER4 = "" 
+```
+
+# Data Processing : Transformation, filtering, Normalization (30%)
+
+## log2-transformation
+
+Biologically, PROPORTIONAL changes are more relevant than additive 
+changes. For this reason, we transform the gene-expression values to a logarithmic scale *(normally in doublings i.e. log2)*
+
+**Make sure to add 1 to ALL expression values before applying logarithmic transformation (to avoid log(0) ).**
+
+- Transform `raw.data` to log2 scale. Store it as a new object.
+
+```{r log2space}
+"YOUR_CODE"
+```
+
+## Gene expression density estimation
+
+A density plot shows us a smooth distribution which is 
+[estimated using our data](https://en.wikipedia.org/wiki/Kernel_density_estimation);
+
+In a nutshell, it is a smoothed version of a histogram. The area below the 
+generated curve is equal to 1, representing the cumulative probability of 
+observing all the data points.
+
+- Using ggplot, make a density plot that shows the log2 gene-expression levels 
+as a density distribution curve for each sample. 
+
+Since ggplot2 requires one observation per row (one column containing all the 
+values to be plotted on a certain axis), you need to change the data frame, 
+currently containing 9 observations per row. 
+
+*hint: Use the function* **melt()** *from the* **reshape2** *package.*
+
+- To use as id variable for the melt function, add a new column of gene names (using the row names).
+- Change the parameters of melt() so that the value column name describes the 
+type of data (i.e. "log2.data")
+- Change the parameters of the geom_density() function to set a transparency of 
+alpha = 0.3 and remove the line.
+- Use the "minimal" theme of ggplot.
+
+*Hint: Useful functions `geom_density()` and `labs()`*
+
+```{r density-plot}
+"YOUR_CODE"
+```
+
+Note the high density of gene expression close to zero, *i.e.* low-expressing genes.
+Genes with low-expression across most samples/replicates should be filtered out.
+
+## Filter out low-expression genes in log2-normalized expression data
+
+**Sufficient gene expression will be defined as log2 expression value greater than 4 in at least 3 of the 9 measurements**
+
+- Make a subset variable `fGenes` with logical values to indicate whether each 
+gene has sufficient gene-expression (according to the above definition).
+- Create a subset of the data using the `fGenes` vector, store it as a new variable.
+- Make a density plot like before, but excluding low-expression genes
+(use melt again on the filtered data). 
+- Make the plot interactive using **ggplotly()** from the plotly package.
+
+**Q5** *How many genes were filtered out? retained?* 
+
+```{r filter-lowexp}
+"YOUR_CODE"
+ANSWER5 = ""
+```
+
+## Simple normalization by the mean 
+
+**Use the log2 transformed filtered data for the next steps**
+
+As proof of principle, we will normalize the raw gene expression values in two steps:
+
+1. First, subtract the mean of each sample from all the sample values.
+2. Second, subtract the minimum of all the values in the dataframe from all the
+dataframe values.
+
+In the end, the lower bound of the normalized expression values should be 0.
+
+- Subtract mean value from each sample and store it in a new object `tmp.data`
+- Subtract from `tmp.data` its minimum value and store the normalized values in 
+a new object `log2.norm`.
+
+*Hint: for this you can use `apply()` and the* **sweep()** 
+*function. This is a new function which you should learn to use on your own. Use* **?sweep** *to understand the input arguments and defaults.*
+*In sum, `sweep()` is used to apply a function to all rows/columns of a data frame (like apply) but with a different argument value for each row/column.*
+
+```{r normalization}
+"YOUR_CODE"
+```
+
+***
+
+## Plot the log2-transformed gene expression at each step of the processing 
+*(meaning one plot for raw, filtered and normalized expression).*
+
+***Using ggplot:***
+
+- Use melt() again to convert each wide dataframe to long format.
+- Make a boxplot of gene expression data of each sample BEFORE normalization AND
+filtering, colored by treatment (use melt again, and add a column identifying the treatment (t=0/3/6)).
+- Make a boxplot of gene expression data of each sample AFTER normalization but BEFORE filtering, colored by treatment (add a column identifying the treatment (t=0/3/6)).
+- Make a boxplot of gene expression data of each sample AFTER normalization AND filtering, colored by treatment (add a column identifying the treatment (t=0/3/6)).
+- Use `grid.arrange()` from package ***gridExtra*** to put all three plots side by side.
+
+## **BONUS task**: Alternative plot - the facet way (not mandatory):
+- Follow the instructions below for extra credit.
+- Create one dataframe in a melted format, that includes data from each step
+of data processing (log2, filtered log2 and normalized).
+- First, merge all three dataframes while making sure the column names are unique
+(add an identifier to each data frame column using `paste()`, i.e. "DC.0hr.r1.filt' before merging)
+- *Hint: try using the `merge()` parameter "by = 0".*
+- Then, use melt on the merged data set.
+- Make a boxplot of gene expression data for each sample, colored by treatment 
+(add a column identifying the treatment (t=0/3/6).
+- *Hint: try using substr() with sapply()`*
+- Use `facet_wrap()` to create three separate panels, one for each step of normalization
+
+```{r boxplot-filt, fig.height=4, fig.width=10}
+"YOUR_CODE"
+```
+
+***
+
+> **IMPORTANT:** For the next parts of the analysis, you should ONLY use the 
+normalized-filtered log2 expression data!
+
+# Clustering on the samples (20%)
+
+## Subset the log2-normalized expression data for the top-2000 most varying genes.
+- Create a new variable containing the normalized-filtered log2 expression levels of the 2000 most varying genes.
+*Hint: Calculate the variance for each gene (based on the 9 value columns)*
+
+```{r topvar-genes}
+"YOUR_CODE"
+```
+
+## Scale and center gene expression
+
+- Scale and center the subset of expression of genes and across samples.
+- Plot a boxplot of the scaled expression of the first 50 genes.
+
+*Hint: Be careful, to use the correct dimension. scale() by default operates on *
+*the columns of the input matrix.*
+
+```{r scale-samples}
+"YOUR_CODE"
+```
+
+***
+
+# Kmeans and Principal Component Analysis (10%)
+
+## Calculate the kmeans across the samples for k=3 clusters (or centers) for the top2000 most varying genes.
+
+The expected output is a clustering of the different treatments or conditions based on gene expression.
+
+```{r kmeans-sample}
+set.seed(2020)
+"YOUR_CODE"
+```
+
+## Compute the PCA on the log2-normalized expression data for the top2000 most varying genes.
+
+```{r PCA-sample}
+"YOUR_CODE"
+```
+
+Plotting the PCA:
+
+*The title axis should say which principal component is represented and what
+percentage of variance is explained.*
+
+  - In the first plot color the points according to the kmeans clusters
+  - In the second plot color the points according to their treatments.
+  - Add the titles "PCA on samples gene expression profile - (Kmeans-Clusters | 
+  Treatment)" accordingly
+  - Make sure the legends are clear to differentiate between plots
+  - Use `grid.arrange()` from package ***gridExtra*** to put the plots side by side.
+
+```{r, PCA-plot, fig.height= 5, fig.width=10}
+"YOUR_CODE"
+```
+
+***
+
+# Gene expression changes induced by treatment (10%)
+
+In this part we will look at changes in expression of genes at 6 hours of 
+treatment compared to time point 0 (untreated).
+
+**Important:** use the log2-normalized filtered data.
+
+## Calculate the change in gene expression between t0 and t6 and its significance
+
+*The change in expression should be expressed in log-fold-change (logFCH) between timepoint 0 and timepoint 6.*
+
+*The statistical significance of the change in expression should be expressed as the -log10 p-value (-log10pval)*
+
+- Find the mean gene expression by groups of samples at times 0 and 6.
+- Subtract the mean of t0 from the mean of t6 to find the logFCH
+- Perform two tailed t.tests over the samples and extract the p-value.
+* Hint: use the function `t.test()` and extract the p-value from its output. *
+- Calculate the -log10 p-value (-log10pVal)
+- Add the logFCH and -log10pval as columns to the log normalized expression data
+frame
+
+```{r calculate statistics}
+"YOUR_CODE"
+```
+
+## Define subgroups of interest. 
+
+- Define a group of highly upregulated genes as genes with logFCH higher than 4 
+and -log10pval higher than 4.
+- Create a column in the data frame classifying genes as upregulated or not 
+upregulated.
+- Find genes that are related to interferon by using the description column in 
+the original DATA (all genes with the word "interferon" in their description)
+- Create a column in the dataframe classifying genes as interferon-related 
+or not
+
+```{r kmeans-genes}
+"YOUR_CODE"
+```
+
+## Show a volcano plot of the change in gene expression at t6
+
+- Use ggplot()
+- Change the color of the upregulated genes
+- Make the axis and legend labels clear
+
+**Q6** How many genes are upregulated in t6?
+
+```{r volcano plot 1}
+"YOUR_CODE"
+ANSWER6 = ""
+```
+
+## Show the same volcano plot now with interferon related genes highlighted in color
+- Make the plot interactive using **ggplotly()** from the plotly package.
+
+**Q7** How many interferon related genes are also upregulated by our definition? 
+
+**Q8** What can you say about interferon related genes in comparison with the rest of the genes? is our definition of upregulated genes too strict?
+
+```{r volcano plot 2}
+ANSWER7 = ""
+ANSWER8 = ""
+"YOUR_CODE"
+```
+***
+
+# Answers area:
+
+## Your answers to the questions should appear here:
+
+Remember to use code to answer your questions whenever possible.
+
+<br>
+**Q1** *How many rows and columns does the data have?*
+
+A: **`r ANSWER1`**
+
+<br>
+
+**Q2** *What do the rows and columns represent in this dataset?* 
+
+A: **`r ANSWER2`**
+
+<br>
+
+**Q3** *What class of data is found in each column?*
+
+A: **`r ANSWER3`**
+
+<br>
+
+**Q4** *If you were to exclude one replicate based on correlation, which would you exclude?* 
+
+A: **`r ANSWER4`**
+
+<br> 
+
+**Q5** *How many genes were filtered out? retained?*  
+
+A: **`r ANSWER5`**
+
+<br>
+
+**Q6** *How many genes are upregulated in t6?* 
+
+A: **`r ANSWER6`**
+
+<br> 
+
+**Q7** *How many interferon related genes are also upregulated by our definition?* 
+
+A: **`r ANSWER7`**
+
+<br> 
+
+**Q8** *What can you say about interferon related genes in comparison with the rest of the genes? is our definition of upregulated genes too strict?*
+
+A: **`r ANSWER8`**
+
+<br> 
+
+***
+
+---
+
+<span class='credits' >
+Author Credits
+
+Original dataset from Broad Institute, MIT & Harvard
+
+Written by:
+
+* Yaara Finkel
+* Hugo Schweke
+* Shevie Rozman
+* Miguel Angel Garcia-Campos https://github.com/AngelCampos
+* Benjamin Dubreuil
+
+Under supervision of :
+
+* Dr. Schragi Schwartz
+* Dr. Yaron Anterbi
+
+</span>
+
+---
