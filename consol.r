@@ -50,7 +50,6 @@ printDFinfo(DATA)
 
 printDF(DATA)
 metadataFunkyFunction(DATA)
-
 DATA%>% 
   names()
 
@@ -72,3 +71,81 @@ RepNameFunction <- function(x) {
 df <- DATA
 df <- RepNameFunction(df)
 df%>% names()
+
+
+
+# *hint: Use functions `cor(method = x)`, `pheatmap()`*
+
+printDF(df)
+df[1:10,] %>% view()
+
+
+FunctionForCorMetSpe <- function(x){
+  corMat <- x[,grep("^DC", colnames(x))] %>% 
+    cor(method = "spearman")
+  return(corMat)
+}
+FunctionForCorMetpearson <- function(x){
+  corMat <- x[,grep("^DC", colnames(x))] %>% 
+    cor(method = "pearson")
+  return(corMat)
+}
+
+FunctionFor_rCor <- function(x){
+  corMat <- x[,grep("^DC", colnames(x))] %>% 
+    as.matrix() %>%
+    rcorr(type = c("pearson")) %>%
+  return(corMat)
+}
+
+FunForGenHeatMap <- function(x){
+  x %>%
+    pheatmap(
+      color = colorRampPalette(c("#62a1db", "#e7d87d", "#dd9f40","#b4451f","#b01111"))(100),
+      cluster_rows = TRUE,
+      cluster_cols = TRUE,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
+      main = "Heatmap of Pearson Correlation"
+    )
+    }
+
+DATA %>%
+  select(-c("DC.0hr.r1","DC.0hr.r2","DC.0hr.r3"))%>%
+  FunctionForCorMetpearson() %>%  FunForGenHeatMap()
+
+DATA %>%
+  select(-c("DC.3hr.r1","DC.3hr.r2","DC.3hr.r3"))%>%
+  FunctionForCorMetpearson() %>%  FunForGenHeatMap()
+
+DATA %>%
+  select(-c("DC.6hr.r2"))%>%
+  FunctionForCorMetpearson() %>%  FunForGenHeatMap()
+
+FunctionForCorMetpearson(DATA)  %>% FunForGenHeatMap()
+FunctionForCorMetSpe(DATA)  %>% FunForGenHeatMap()
+
+# install.packages("Hmisc")
+library(Hmisc)
+FunctionFor_rCor(DATA) 
+DATA %>% as.matrix() %>% rcorr(type = c("pearson","spearman")) %>% view()
+
+library(magrittr)
+library(Hmisc)
+
+
+df %>% FunctionFor_rCor() %>% print()
+
+
+data <- matrix( sample(seq(1,2000),200), ncol = 10 )
+rownames(df) <- paste0("sample_" , seq(1,9))
+colnames(FunctionForCorMetpearson(DATA)) <- paste0("variable",seq(1,9))
+
+# Euclidean distance
+dist <- dist(df[ , c(2:10)] , diag=TRUE)
+
+# Hierarchical Clustering with hclust
+hc <- hclust(dist)
+
+# Plot the result
+plot(hc)

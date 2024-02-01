@@ -206,7 +206,32 @@ function `pheatmap()` from the package ***pheatmap***.
 **Q4** If you were to exclude one replicate from one time point based on the Pearson correlation, which would you exclude?
 
 ```{r plot-cor}
-"YOUR_CODE"
+FunctionForCorMetSpe <- function(x){
+  corMat <- x[,grep("^DC", colnames(x))] %>% 
+    cor(method = "spearman")
+  return(corMat)
+}
+FunctionForCorMetpearson <- function(x){
+  corMat <- x[,grep("^DC", colnames(x))] %>% 
+    cor(method = "pearson")
+  return(corMat)
+}
+
+FunForGenHeatMap <- function(x){
+  x %>%
+    pheatmap(
+      color = colorRampPalette(c("#62a1db", "#e7d87d", "#dd9f40","#b4451f","#b01111"))(100),
+      cluster_rows = TRUE,
+      cluster_cols = TRUE,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
+      main = "Heatmap of Pearson Correlation"
+    )
+    }
+
+FunctionForCorMetSpe(DATA) %>% FunForGenHeatMap()
+FunctionForCorMetpearson(DATA)  %>% FunForGenHeatMap()
+
 ANSWER4 = "" 
 ```
 
