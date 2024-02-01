@@ -77,8 +77,8 @@ df%>% names()
 # *hint: Use functions `cor(method = x)`, `pheatmap()`*
 
 printDF(df)
-df[1:10,] %>% view()
-
+#df[1:10,] %>% view()
+df %>% names()
 
 FunctionForCorMetSpe <- function(x){
   corMat <- x[,grep("^DC", colnames(x))] %>% 
@@ -125,10 +125,6 @@ DATA %>%
 FunctionForCorMetpearson(DATA)  %>% FunForGenHeatMap()
 FunctionForCorMetSpe(DATA)  %>% FunForGenHeatMap()
 
-# install.packages("Hmisc")
-library(Hmisc)
-FunctionFor_rCor(DATA) 
-DATA %>% as.matrix() %>% rcorr(type = c("pearson","spearman")) %>% view()
 
 library(magrittr)
 library(Hmisc)
@@ -136,16 +132,3 @@ library(Hmisc)
 
 df %>% FunctionFor_rCor() %>% print()
 
-
-data <- matrix( sample(seq(1,2000),200), ncol = 10 )
-rownames(df) <- paste0("sample_" , seq(1,9))
-colnames(FunctionForCorMetpearson(DATA)) <- paste0("variable",seq(1,9))
-
-# Euclidean distance
-dist <- dist(df[ , c(2:10)] , diag=TRUE)
-
-# Hierarchical Clustering with hclust
-hc <- hclust(dist)
-
-# Plot the result
-plot(hc)

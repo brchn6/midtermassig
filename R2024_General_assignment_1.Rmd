@@ -13,6 +13,9 @@ output:
 editor_options: 
   chunk_output_type: console
 ---
+```{r}
+
+```
 
 <!-- Headers -->
 <style type="text/css">
@@ -225,12 +228,12 @@ FunForGenHeatMap <- function(x){
       cluster_cols = TRUE,
       show_rownames = TRUE,
       show_colnames = TRUE,
-      main = "Heatmap of Pearson Correlation"
+      main = "Heatmap of Correlation"
     )
     }
 
-FunctionForCorMetSpe(DATA) %>% FunForGenHeatMap()
-FunctionForCorMetpearson(DATA)  %>% FunForGenHeatMap()
+FunctionForCorMetSpe(DATA) %>% FunForGenHeatMap() %>% print()
+FunctionForCorMetpearson(DATA) %>% FunForGenHeatMap() %>% print()
 
 ANSWER4 = "" 
 ```
@@ -247,7 +250,14 @@ changes. For this reason, we transform the gene-expression values to a logarithm
 - Transform `raw.data` to log2 scale. Store it as a new object.
 
 ```{r log2space}
-"YOUR_CODE"
+# log2 transformation
+funcLog2 <- function(x) {
+  LogDataToCol <- x[, grep("^DC", colnames(x))] %>%  # find all columns that start with DC
+    apply(2, function(y) log2(y + 1)) # apply log2 to each column and add 1 to each value
+  x[, grep("^DC", colnames(x))] <- LogDataToCol # replace the columns with the log2 transformed columns
+  return(x) # return the new dataframe
+}
+DATA <- funcLog2(DATA)  # apply the function to the data and store it in a DATA variable
 ```
 
 ## Gene expression density estimation
