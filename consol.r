@@ -139,9 +139,26 @@ meltedData <- melt(DATA, id = )
 meltedData[1:10,] %>% print()
 
 
-DATA %>% 
+meltedData <- DATA %>% 
   pivot_longer(
-    cols = !c("id", "geneSymbol",), 
-    names_to = "income", 
-    values_to = "count"
-  )
+    cols = c(grep("DC", names(DATA))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","geneSymbol","log2Count"))
+
+
+log2.data <- DATA %>% 
+  pivot_longer(
+    cols = c(grep("DC", names(DATA))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","geneSymbol","log2Count"))
+
+log2.data
+
+
+#apply to sun over the log2.data column
+fGenes  <- apply(log2.data[,"log2Count"], 2, function(x) {
+  #create a logical vector of log2 genes that are between 4 and 9
+  (x>=4 & x<=9) 
+}) %>% as.logical()

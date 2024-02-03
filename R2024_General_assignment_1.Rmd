@@ -115,6 +115,8 @@ library(pheatmap)
 library(ggplot2)
 library(reshape2)
 library(gridExtra)
+library(tidyverse)
+library(plotly)
 DATA = read.table("Assignment1-DendriticCellsDataset.txt", 
                  stringsAsFactors = FALSE,header=TRUE)
 ```
@@ -178,8 +180,7 @@ RepNameFunction <- function(x) {
   }
   
   names(x) <- NewName
-  return(x)
-}
+  return(x)}
 DATA <- RepNameFunction(DATA)
 ```
 
@@ -288,7 +289,24 @@ alpha = 0.3 and remove the line.
 
 ```{r density-plot}
 library(reshape2)
-meltedData <- melt(DATA, id.vars = "geneSymbol")
+#create a new object with the pivoted data that as three columns: sample, geneSymbol and log2Count
+log2.data <- DATA %>% 
+  pivot_longer(
+    cols = c(grep("DC", names(DATA))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","geneSymbol","log2Count"))
+
+# create the density plot named DesnetiPlot
+DesnetiPlot<- ggplotly(log2.data, aes(x = log2Count, fill = sample)) +
+  geom_density(alpha = 0.3) +
+  labs(title = "Density plot of log2 gene expression levels",
+       x = "log2 gene expression levels",
+       y = "Density") +
+  theme_bw()
+
+# print the plot
+print(DesnetiPlot)
 ```
 
 Note the high density of gene expression close to zero, *i.e.* low-expressing genes.
@@ -308,8 +326,21 @@ gene has sufficient gene-expression (according to the above definition).
 **Q5** *How many genes were filtered out? retained?* 
 
 ```{r filter-lowexp}
-"YOUR_CODE"
-ANSWER5 = ""
+#apply build in function to run over the log2.data column
+fGenes  <- apply(log2.data[,"log2Count"], 2, function(x) {
+  #create a logical vector of log2 genes that are between 4 and 9
+  (x>=4 & x<=9) 
+}) %>% as.logical()
+
+#filter the data using the fGenes vector
+filtered.data <- log2.data[fGenes,]
+
+#calculate the number of genes that were filtered out and retained
+NumGensFilteredOut <- sum(!fGenes)
+#calculate the number of genes that were retained
+NumGensRetained <- sum(fGenes)
+
+ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (192065)` and the number of genes that were retained is: `r NumGensRetained (63679)`"
 ```
 
 ## Simple normalization by the mean 
