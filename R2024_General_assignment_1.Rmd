@@ -424,8 +424,8 @@ functio_for_ggplot_boxplot <- function(x,title) {
   theme_bw()
 }
 
-# create a new variable with the data for plot 1
-#call the function to create the plot
+# create a new variable with the data for plots
+#call the function to create the plots
 
 DataForPlot1 <- log2.data 
 functio_for_ggplot_boxplot(DataForPlot1,"Boxplot of gene expression data of each sample BEFORE normalization AND filtering") %>% print()
@@ -437,6 +437,22 @@ functio_for_ggplot_boxplot(DataForPlot2,"Boxplot of gene expression data of each
 DataForPlot3 <- filtered_dataLog2norm
 functio_for_ggplot_boxplot(DataForPlot3,"Boxplot of gene expression data of each sample AFTER normalization AND filtering") %>% print()
 
+
+#extra credit phase
+#merge the dataframes
+DataForPlot1$orgin<- "Data BEFORE normalization\n AND filtering "
+DataForPlot2$orgin<- "Data BEFORE normalization\n AFTER filtering"
+DataForPlot3$orgin<- "Data AFTER normalization\n AND filtering"
+rbindOfAllData <- rbind(DataForPlot1,DataForPlot2,DataForPlot3)
+
+plot <- functio_for_ggplot_boxplot(rbindOfAllData, "Boxplot of gene expression data of each sampls") 
+plot <- plot + 
+  facet_wrap(~orgin, strip.position = "top", scales = "free_y") + 
+  theme_bw() +
+  labs(title = "Boxplot of gene expression data of each sample", x = "Sample", y = "log2 gene expression levels") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        strip.text = element_text(margin = margin(b = 20)))
+plot %>% print()
 ```
 
 ***
@@ -451,8 +467,9 @@ normalized-filtered log2 expression data!
 *Hint: Calculate the variance for each gene (based on the 9 value columns)*
 
 ```{r topvar-genes}
-"YOUR_CODE"
+
 ```
+
 
 ## Scale and center gene expression
 

@@ -176,3 +176,5 @@ sum(is.na(filtered.data$log2Count))
 hist(log2.norm, main = "Histogram of normalized log2 gene expression levels", xlab = "Normalized log2 gene expression levels", col = "lightblue")
 hist(filtered_dataLog2norm$log2Count, main = "Histogram of normalized log2 gene expression levels", xlab = "Normalized log2 gene expression levels", col = "lightblue")
 hist(filtered.data$log2Count, main = "Histogram of normalized log2 gene expression levels", xlab = "Normalized log2 gene expression levels", col = "lightblue")
+
+
