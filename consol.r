@@ -162,3 +162,17 @@ fGenes  <- apply(log2.data[,"log2Count"], 2, function(x) {
   #create a logical vector of log2 genes that are between 4 and 9
   (x>=4 & x<=9) 
 }) %>% as.logical()
+
+
+
+
+apply(filtered.data[,"log2Count"], 2, function(y) {
+  sum(is.na(df$col))
+  }) %>% print(y)
+
+sum(is.na(filtered.data$log2Count))
+
+
+hist(log2.norm, main = "Histogram of normalized log2 gene expression levels", xlab = "Normalized log2 gene expression levels", col = "lightblue")
+hist(filtered_dataLog2norm$log2Count, main = "Histogram of normalized log2 gene expression levels", xlab = "Normalized log2 gene expression levels", col = "lightblue")
+hist(filtered.data$log2Count, main = "Histogram of normalized log2 gene expression levels", xlab = "Normalized log2 gene expression levels", col = "lightblue")

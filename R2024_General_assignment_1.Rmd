@@ -298,12 +298,18 @@ log2.data <- DATA %>%
   ) %>% select(c("sample","geneSymbol","log2Count"))
 
 # create the density plot named DesnetiPlot
-DesnetiPlot<- ggplotly(log2.data, aes(x = log2Count, fill = sample)) +
-  geom_density(alpha = 0.3) +
-  labs(title = "Density plot of log2 gene expression levels",
-       x = "log2 gene expression levels",
-       y = "Density") +
-  theme_bw()
+functionForDesnetiPlot <- function(x){
+  DesnetiPlot <- x %>% 
+    ggplot(aes(x = log2Count, fill = sample)) +
+    geom_density(alpha = 0.3) +
+    labs(title = "Density plot of log2 gene expression levels",
+         x = "log2 gene expression levels",
+         y = "Density") +
+    theme_bw()
+  return(DesnetiPlot)
+}
+
+DesnetiPlot<- functionForDesnetiPlot(log2.data) # the data must have col name log2Count and sample
 
 # print the plot
 print(DesnetiPlot)
@@ -340,6 +346,9 @@ NumGensFilteredOut <- sum(!fGenes)
 #calculate the number of genes that were retained
 NumGensRetained <- sum(fGenes)
 
+#plot the filtered data interactively using ggplotly by calling the functionForDesnetiPlot from the privious cell
+functionForDesnetiPlot(filtered.data) %>% ggplotly() %>% print()
+
 ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (192065)` and the number of genes that were retained is: `r NumGensRetained (63679)`"
 ```
 
@@ -364,7 +373,16 @@ a new object `log2.norm`.
 *In sum, `sweep()` is used to apply a function to all rows/columns of a data frame (like apply) but with a different argument value for each row/column.*
 
 ```{r normalization}
-"YOUR_CODE"
+funcrionForNormbyMean <- function(x){
+  # subtract the mean of each sample from all the sample values
+  tmp.data <- apply(x[,"log2Count"], 2, function(y) y - mean(y))
+  # subtract from tmp.data its minimum value
+  log2.norm <- sweep(tmp.data, 2, apply(tmp.data, 2, min), "-")
+  return(log2.norm)
+}
+log2.norm <- funcrionForNormbyMean(filtered.data)
+filtered_dataLog2norm <- filtered.data
+filtered_dataLog2norm$log2Count <- log2.norm %>% as.vector()
 ```
 
 ***
@@ -395,7 +413,30 @@ of data processing (log2, filtered log2 and normalized).
 - Use `facet_wrap()` to create three separate panels, one for each step of normalization
 
 ```{r boxplot-filt, fig.height=4, fig.width=10}
-"YOUR_CODE"
+
+#this function is used to create a ggplot boxplot by inputting a dataframe
+functio_for_ggplot_boxplot <- function(x,title) {
+    ggplot(x,aes(x = sample, y = log2Count, fill = sample)) +
+  geom_boxplot() +
+  labs(title = title ,
+       x = "Sample",
+       y = "log2 gene expression levels") +
+  theme_bw()
+}
+
+# create a new variable with the data for plot 1
+#call the function to create the plot
+
+DataForPlot1 <- log2.data 
+functio_for_ggplot_boxplot(DataForPlot1,"Boxplot of gene expression data of each sample BEFORE normalization AND filtering") %>% print()
+
+DataForPlot2 <- filtered.data
+functio_for_ggplot_boxplot(DataForPlot2,"Boxplot of gene expression data of each sample BEFORE normalization AFTER filtering") %>% print()
+
+
+DataForPlot3 <- filtered_dataLog2norm
+functio_for_ggplot_boxplot(DataForPlot3,"Boxplot of gene expression data of each sample AFTER normalization AND filtering") %>% print()
+
 ```
 
 ***
