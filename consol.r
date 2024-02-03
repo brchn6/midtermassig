@@ -68,17 +68,14 @@ RepNameFunction <- function(x) {
   names(x) <- NewName
   return(x)
 }
+
+
 df <- DATA
 df <- RepNameFunction(df)
 df%>% names()
 
 
 
-# *hint: Use functions `cor(method = x)`, `pheatmap()`*
-
-printDF(df)
-#df[1:10,] %>% view()
-df %>% names()
 
 FunctionForCorMetSpe <- function(x){
   corMat <- x[,grep("^DC", colnames(x))] %>% 
@@ -132,3 +129,19 @@ library(Hmisc)
 
 df %>% FunctionFor_rCor() %>% print()
 
+df <- DATA
+DATA [1:10,] %>% print()
+df[1:10,2:4] %>% print()
+DATA %>% names()
+
+library(reshape2)
+meltedData <- melt(DATA, id = )
+meltedData[1:10,] %>% print()
+
+
+DATA %>% 
+  pivot_longer(
+    cols = !c("id", "geneSymbol",), 
+    names_to = "income", 
+    values_to = "count"
+  )

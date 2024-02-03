@@ -115,7 +115,6 @@ library(pheatmap)
 library(ggplot2)
 library(reshape2)
 library(gridExtra)
-library(plotly)
 DATA = read.table("Assignment1-DendriticCellsDataset.txt", 
                  stringsAsFactors = FALSE,header=TRUE)
 ```
@@ -288,7 +287,8 @@ alpha = 0.3 and remove the line.
 *Hint: Useful functions `geom_density()` and `labs()`*
 
 ```{r density-plot}
-"YOUR_CODE"
+library(reshape2)
+meltedData <- melt(DATA, id.vars = "geneSymbol")
 ```
 
 Note the high density of gene expression close to zero, *i.e.* low-expressing genes.
