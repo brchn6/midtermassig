@@ -178,3 +178,64 @@ hist(filtered_dataLog2norm$log2Count, main = "Histogram of normalized log2 gene 
 hist(filtered.data$log2Count, main = "Histogram of normalized log2 gene expression levels", xlab = "Normalized log2 gene expression levels", col = "lightblue")
 
 
+filtered.data %>% view()
+
+
+
+fGenes %>% length()
+
+DATA %>% dim() %>% print()
+
+a <- apply(DATA[,grep("DC", names(DATA))], 2, function(x) {
+  (x>=4 & x<=9)})
+
+a %>% dim() %>% print()
+
+DATA[a,]%>% dim() %>% print()
+DATA[a,]%>% na.omit() %>% view()
+DATA[,]%>% view()
+
+
+#apply build in function to run over the log2.data column
+fGenes  <- apply(DATA[,"log2Count"], 2, function(x) {
+  #create a logical vector of log2 genes that are between 4 and 9
+  (x>=4 & x<=9) 
+}) %>% as.logical()
+
+#filter the data using the fGenes vector
+filtered.data <- log2.data[fGenes,]
+
+#calculate the number of genes that were filtered out and retained
+NumGensFilteredOut <- sum(!fGenes)
+#calculate the number of genes that were retained
+NumGensRetained <- sum(fGenes)
+
+#plot the filtered data interactively using ggplotly by calling the functionForDesnetiPlot from the privious cell
+functionForDesnetiPlot(filtered.data) %>% ggplotly() %>% print()
+
+ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (192065)` and the number of genes that were retained is: `r NumGensRetained (63679)`"
+
+
+
+
+
+#use apply for run on the DATA "DC" columns and return a logical vector of log2 genes that are between 4 and 9
+fGenes <- apply(DATA[,grep("DC", names(DATA))], 2, function(x) {
+  #create a logical vector of log2 genes that are between 4 and 9
+  (x>=4 & x<=9)})
+
+#filter the data using the fGenes vector and store it in a DATA variable
+tmpdata <- DATA[fGenes,]%>% na.omit()
+DATA[fGenes,]%>% view()
+DATA[1:15,] %>% print()
+fGenes[1:15,] %>% print()
+tmpdata[1:15,] %>% print()
+
+fGenes %>% dim()
+tmpdata  %>% dim()
+
+63679 - 28416
+#calculate the number of genes that were filtered out and retained
+NumGensFilteredOut <- apply(fGenes, 1, function(x) sum(!x))
+#calculate the number of genes that were retained
+NumGensRetained <- apply(fGenes, 1, function(x) sum(x))

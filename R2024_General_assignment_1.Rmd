@@ -332,24 +332,34 @@ gene has sufficient gene-expression (according to the above definition).
 **Q5** *How many genes were filtered out? retained?* 
 
 ```{r filter-lowexp}
-#apply build in function to run over the log2.data column
-fGenes  <- apply(log2.data[,"log2Count"], 2, function(x) {
+#use apply for run on the DATA "DC" columns and return a logical vector of log2 genes that are between 4 and 9
+fGenes <- apply(DATA[,grep("DC", names(DATA))], 2, function(x) {
   #create a logical vector of log2 genes that are between 4 and 9
-  (x>=4 & x<=9) 
-}) %>% as.logical()
+  (x>=4 & x<=9)})
 
-#filter the data using the fGenes vector
-filtered.data <- log2.data[fGenes,]
+#filter the data using the fGenes vector and store it in a tmpdata variable
+filtered.data <- DATA[fGenes,] %>% na.omit() #without the na.omit the df will have 63679 rows and 14 columns 
 
 #calculate the number of genes that were filtered out and retained
-NumGensFilteredOut <- sum(!fGenes)
+NumGensFilteredOut <- nrow(DATA) - nrow(filtered.data)
 #calculate the number of genes that were retained
-NumGensRetained <- sum(fGenes)
+NumGensRetained <- nrow(filtered.data)
+
+
+longerDataForPlot <- filtered.data %>% 
+  pivot_longer(
+    cols = c(grep("DC", names(DATA))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","geneSymbol","log2Count"))
 
 #plot the filtered data interactively using ggplotly by calling the functionForDesnetiPlot from the privious cell
-functionForDesnetiPlot(filtered.data) %>% ggplotly() %>% print()
+plot <- functionForDesnetiPlot(longerDataForPlot) %>% ggplotly()
 
-ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (192065)` and the number of genes that were retained is: `r NumGensRetained (63679)`"
+# Print the interactive plot
+htmlwidgets::saveWidget(plot, "plot.html")
+
+ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (21938)` and the number of genes that were retained is: `r NumGensRetained (6478)`"
 ```
 
 ## Simple normalization by the mean 
@@ -375,7 +385,7 @@ a new object `log2.norm`.
 ```{r normalization}
 funcrionForNormbyMean <- function(x){
   # subtract the mean of each sample from all the sample values
-  tmp.data <- apply(x[,"log2Count"], 2, function(y) y - mean(y))
+  tmp.data <- apply(filtered.data[,grep("DC", names(DATA))], 2, function(y) y - mean(y))
   # subtract from tmp.data its minimum value
   log2.norm <- sweep(tmp.data, 2, apply(tmp.data, 2, min), "-")
   return(log2.norm)
@@ -413,7 +423,6 @@ of data processing (log2, filtered log2 and normalized).
 - Use `facet_wrap()` to create three separate panels, one for each step of normalization
 
 ```{r boxplot-filt, fig.height=4, fig.width=10}
-
 #this function is used to create a ggplot boxplot by inputting a dataframe
 functio_for_ggplot_boxplot <- function(x,title) {
     ggplot(x,aes(x = sample, y = log2Count, fill = sample)) +
@@ -467,6 +476,13 @@ normalized-filtered log2 expression data!
 *Hint: Calculate the variance for each gene (based on the 9 value columns)*
 
 ```{r topvar-genes}
+# to answer this Q i need to make a new var the hld the original data
+# with the log2 norm value
+# then i will calculate the variance for each gene
+# SO LEST DO IT:
+#goint back to the DATA var:
+DATA %>% 
+
 
 ```
 
