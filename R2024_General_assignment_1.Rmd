@@ -533,7 +533,10 @@ scaledData <- scale(df[,grep("DC", names(df))])
 #plot a boxplot of the scaled expression of the first 50 genes
 scaledData <- as.data.frame(scaledData)
 scaledData <- cbind(df[,c("geneSymbol")],scaledData)
-scaledData[df[, c("geneSymbol")]] <- df[, c("geneSymbol")]
+
+#rename the first column to geneSymbol
+names(scaledData)[1] <- "geneSymbol"
+
 scaledData <- scaledData %>% 
   pivot_longer(
     cols = c(grep("DC", names(scaledData))), 
