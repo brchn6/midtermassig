@@ -239,3 +239,13 @@ tmpdata  %>% dim()
 NumGensFilteredOut <- apply(fGenes, 1, function(x) sum(!x))
 #calculate the number of genes that were retained
 NumGensRetained <- apply(fGenes, 1, function(x) sum(x))
+
+
+
+
+
+
+a <- DATA[1:1,grep("DC", names(DATA))]
+meanofa <- rowMeans(a)
+sweep(a, 1, meanofa, "-")
+sweep(a[,grep("DC", names(a))], 1, apply(a[,grep("DC", names(a))], 1, min), "-")
