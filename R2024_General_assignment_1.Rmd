@@ -297,6 +297,12 @@ log2.data <- DATA %>%
     values_to = "log2Count"
   ) %>% select(c("sample","geneSymbol","log2Count"))
 
+#####################################
+#selp super importent notE!!!:
+# the vat log2.data is a dataframe with 3 columns: sample, geneSymbol and log2Count
+# row numer in 255744 which is the number of genes * 9 (the number of samples)
+#####################################
+
 # create the density plot named DesnetiPlot
 functionForDesnetiPlot <- function(x){
   DesnetiPlot <- x %>% 
@@ -313,6 +319,7 @@ DesnetiPlot<- functionForDesnetiPlot(log2.data) # the data must have col name lo
 
 # print the plot
 print(DesnetiPlot)
+
 ```
 
 Note the high density of gene expression close to zero, *i.e.* low-expressing genes.
@@ -357,7 +364,8 @@ longerDataForPlot <- filtered.data %>%
 plot <- functionForDesnetiPlot(longerDataForPlot) %>% ggplotly()
 
 # Print the interactive plot
-htmlwidgets::saveWidget(plot, "plot.html")
+# htmlwidgets::saveWidget(plot, "plot.html")
+# plot %>% print()
 
 ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (21938)` and the number of genes that were retained is: `r NumGensRetained (6478)`"
 ```
@@ -385,14 +393,20 @@ a new object `log2.norm`.
 ```{r normalization}
 funcrionForNormbyMean <- function(x){
   # subtract the mean of each sample from all the sample values
-  tmp.data <- apply(filtered.data[,grep("DC", names(DATA))], 2, function(y) y - mean(y))
+  tmp.data <- apply(filtered.data[,grep("DC", names(DATA))], 1, function(y){ y - mean(y)})
   # subtract from tmp.data its minimum value
-  log2.norm <- sweep(tmp.data, 2, apply(tmp.data, 2, min), "-")
+  log2.norm <- sweep(tmp.data, 1, apply(tmp.data, 1, min), "-")
   return(log2.norm)
 }
+
 log2.norm <- funcrionForNormbyMean(filtered.data)
-filtered_dataLog2norm <- filtered.data
-filtered_dataLog2norm$log2Count <- log2.norm %>% as.vector()
+log2.norm  %>% view()
+filtered.data %>% view()
+
+
+a <- filtered.data [1:1,2:10]
+mean <- apply(a, 1, mean)
+
 ```
 
 ***
