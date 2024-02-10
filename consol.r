@@ -249,3 +249,12 @@ a <- DATA[1:1,grep("DC", names(DATA))]
 meanofa <- rowMeans(a)
 sweep(a, 1, meanofa, "-")
 sweep(a[,grep("DC", names(a))], 1, apply(a[,grep("DC", names(a))], 1, min), "-")
+
+
+
+scale(df[,grep("DC", names(df))],center = TRUE, scale = TRUE) %>% head()
+
+(df[,grep("DC", names(df))]) %>% head()
+
+
+?scale()

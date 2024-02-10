@@ -509,7 +509,7 @@ df <- log2.norm
 #calculate the variance for each gene
 df$variance <- apply(df[,grep("DC", names(df))], 1, var)
 #bring the variance to the first column
-df <- df[,c("id","DC.0hr.r1","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1","DC.6hr.r2","DC.6hr.r3","variance","geneSymbol","name","desc","txLength")]
+df <- df[,c("id","geneSymbol","DC.0hr.r1","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1","DC.6hr.r2","DC.6hr.r3","variance","name","desc","txLength")]
 df <- df %>% 
   arrange(desc(variance)) #sort the dataframe by variance
 #select the top 2000 most varying genes
@@ -529,22 +529,33 @@ df %>% view()
 
 ```{r scale-samples}
 #scale and center the subset of expression of genes and across samples
-scaledData <- scale(df[,grep("DC", names(df))])
-#plot a boxplot of the scaled expression of the first 50 genes
-scaledData <- as.data.frame(scaledData)
-scaledData <- cbind(df[,c("geneSymbol")],scaledData)
-
+scaledData <- scale(df[,grep("DC", names(df))]) 
+#convert the scaled data to a dataframe
+scaledData <- as.data.frame(scaledData) 
+ #add the geneSymbol column to the scaled data
+scaledData <- cbind(df[,"geneSymbol"],scaledData)
 #rename the first column to geneSymbol
-names(scaledData)[1] <- "geneSymbol"
+names(scaledData)[1] <- "geneSymbol" 
 
-scaledData <- scaledData %>% 
+
+# data is in long format, so we need to pivot it to wide format
+longerDataForPlot <- scaledData[1:50,] %>%
   pivot_longer(
     cols = c(grep("DC", names(scaledData))), 
     names_to = "sample", 
     values_to = "log2Count"
   ) %>% select(c("sample","geneSymbol","log2Count"))
-scaledData <- scaledData[1:50,]
-functio_for_ggplot_boxplot(scaledData,"Boxplot of the scaled expression of the first 50 genes") %>% print()
+
+#plot a boxplot of the scaled expression of the first 50 genes
+ggplot(longerDataForPlot, aes(x = sample, y = log2Count, fill = geneSymbol)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of the scaled expression of the first 50 genes",
+       x = "Sample",
+       y = "Scaled log2 gene expression levels") +
+  theme_bw() %>% print()
+
+
+#this part im super nt sure about !!!!
 ```
 
 ***
@@ -557,13 +568,119 @@ The expected output is a clustering of the different treatments or conditions ba
 
 ```{r kmeans-sample}
 set.seed(2020)
-"YOUR_CODE"
+#calculate the kmeans across the samples for k=3 clusters
+kmeansClust <- kmeans(scaledData[,grep("DC", names(scaledData))], centers = 3)
+#add the kmeans clusters to the scaled data
+scaledData$cluster <- kmeansClust$cluster
+
+ggplot(longerDataForPlot, aes(x = sample, y = log2Count, fill = factor(cluster))) +
+  geom_point(position = position_jitterdodge(), alpha = 0.5) +
+  labs(title = "Kmeans clusters of the top2000 most varying genes",
+       x = "Sample",
+       y = "Scaled log2 gene expression levels") + 
+  theme_bw() %>% print()
+
+
+
 ```
 
 ## Compute the PCA on the log2-normalized expression data for the top2000 most varying genes.
 
 ```{r PCA-sample}
-"YOUR_CODE"
+#compute the PCA on the log2-normalized expression data for the top2000 most varying genes
+pca <- prcomp(scaledData[,grep("DC", names(scaledData))], scale = TRUE)
+#add the PCA to the scaled data
+scaledData$pca1 <- pca$x[,1]
+scaledData$pca2 <- pca$x[,2]
+#plot the PCA
+pcaPlot <- ggplot(scaledData, aes(x = pca1, y = pca2, color = factor(cluster))) +
+  geom_point(alpha = 0.5) +
+  viridis::scale_color_viridis(discrete = TRUE) +
+  labs(title = "PCA on the top2000 most varying genes",
+       x = "PCA1",
+       y = "PCA2") + 
+  theme_bw() %>% print()
+
+#compute the PCA on the log2-normalized expression data for the top2000 most varying genes
+pca <- prcomp(scaledData[,grep("DC", names(scaledData))], scale = TRUE)
+#add the PCA to the scaled data
+scaledData$pca1 <- pca$x[,1]
+scaledData$pca2 <- pca$x[,2]
+#plot the PCA
+pcaPlot <- ggplot(scaledData, aes(x = pca1, y = pca2, color = factor(cluster))) +
+  geom_point(alpha = 0.5) +
+  viridis::scale_color_viridis(discrete = TRUE) +
+  labs(title = "PCA on the top2000 most varying genes",
+       x = "PCA1",
+       y = "PCA2") + 
+  theme_bw() +
+  
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[1]^2 * 100, 2), "%")), 
+            x = max(scaledData$pca1), y = max(scaledData$pca2), 
+            hjust = 1, vjust = 1, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[2]^2 * 100, 2), "%")), 
+            x = max(scaledData$pca1), y = min(scaledData$pca2), 
+            hjust = 1, vjust = -0.5, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[3]^2 * 100, 2), "%")), 
+            x = min(scaledData$pca1), y = max(scaledData$pca2), 
+            hjust = -0.5, vjust = 1, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[4]^2 * 100, 2), "%")), 
+            x = min(scaledData$pca1), y = min(scaledData$pca2), 
+            hjust = -0.5, vjust = -0.5, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[5]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[6]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[7]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[8]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[9]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[10]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[11]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[12]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[13]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[14]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[15]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[16]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[17]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[18]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[19]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black") +
+  geom_text(aes(label = paste0("Var: ", round(pca$sdev[20]^2 * 100, 2), "%")), 
+            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
+            hjust = 0, vjust = 0, size = 4, color = "black")
+
+grid.arrange(pcaPlot, ncol = 1)
+
+
+
+dev.off()
 ```
 
 Plotting the PCA:
