@@ -117,8 +117,14 @@ library(reshape2)
 library(gridExtra)
 library(tidyverse)
 library(plotly)
-DATA = read.table("Assignment1-DendriticCellsDataset.txt", 
-                 stringsAsFactors = FALSE,header=TRUE)
+
+#build the cwd path to get the file
+here <- getwd()
+if (here == "Y:/barc/MSc/R/midtermassig") {
+  DATA <- read.table("Assignment1-DendriticCellsDataset.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+} else {
+  DATA <- read.table(paste0(getwd(),"/MSc/R/midtermassig/Assignment1-DendriticCellsDataset.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+}
 ```
 
 ## Describe the dataset by answering questions Q1, Q2 and Q3
@@ -182,6 +188,7 @@ RepNameFunction <- function(x) {
   names(x) <- NewName
   return(x)}
 DATA <- RepNameFunction(DATA)
+
 ```
 
 ***
@@ -315,7 +322,7 @@ functionForDesnetiPlot <- function(x){
   return(DesnetiPlot)
 }
 
-DesnetiPlot<- functionForDesnetiPlot(longDataForPlot ) # the data must have col name log2Count and sample
+DesnetiPlot<- functionForDesnetiPlot(longerDataForPlot) # the data must have col name log2Count and sample
 
 # print the plot
 print(DesnetiPlot)
@@ -446,7 +453,7 @@ functio_for_ggplot_boxplot <- function(x,title) {
   ggplot(x,aes(x = sample, y = log2Count, fill = sample)) +
   geom_boxplot() +
   labs(title = title ,
-       x = "Sample",
+       x = "Sample",  
        y = "log2 gene expression levels") +
   theme_bw()
 }
@@ -462,13 +469,13 @@ functionTolongerDataForPlot <- function(x) {
 }
 
 DataForPlot1 <- functionTolongerDataForPlot(DATA)
-functio_for_ggplot_boxplot(DataForPlot1,"Boxplot of gene expression data of each sample BEFORE normalization BEFOR filtering") %>% print()
+functio_for_ggplot_boxplot(DataForPlot1,"GeneExpration - Raw") %>% print()
 
 DataForPlot2 <- functionTolongerDataForPlot(tmp.data)
-functio_for_ggplot_boxplot(DataForPlot2,"Boxplot of gene expression data of each sample BEFORE normalization AFTER filtering") %>% print()
+functio_for_ggplot_boxplot(DataForPlot2,"GeneExpration - Filtterd") %>% print()
 
 DataForPlot3 <- functionTolongerDataForPlot(log2.norm)
-functio_for_ggplot_boxplot(DataForPlot3,"Boxplot of gene expression data of each sample AFTER normalization AND filtering") %>% print()
+functio_for_ggplot_boxplot(DataForPlot3,"GeneExpration - Filtterd + norm") %>% print()
 
 
 #extra credit phase
@@ -500,24 +507,26 @@ normalized-filtered log2 expression data!
 *Hint: Calculate the variance for each gene (based on the 9 value columns)*
 
 ```{r topvar-genes}
-# to answer this Q i need to make a new var the hld the original data
+# to answer this Q i need to make a new var the help the original data
 # with the log2 norm value
 # then i will calculate the variance for each gene
 # SO LEST DO IT:
-
 df <- log2.norm
-#calculate the variance for each gene
+
+#tranform df to be tible
+df <- as.tibble(df)
+
+#calculate the variance for each gene and adding t to the dataframe
 df$variance <- apply(df[,grep("DC", names(df))], 1, var)
-#bring the variance to the first column
+#bring the variance to the first column reoredering the dataframe co
 df <- df[,c("id","geneSymbol","DC.0hr.r1","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1","DC.6hr.r2","DC.6hr.r3","variance","name","desc","txLength")]
+#sort the dataframe by variance
 df <- df %>% 
   arrange(desc(variance)) #sort the dataframe by variance
-#select the top 2000 most varying genes
-df <- df[1:2000,]
-df %>% view()
-```
-```
 
+#subset the df base on the top-2000 most varying genes
+df <- df[1:2000,]
+```
 
 ## Scale and center gene expression
 
@@ -528,34 +537,96 @@ df %>% view()
 *the columns of the input matrix.*
 
 ```{r scale-samples}
-#scale and center the subset of expression of genes and across samples
-scaledData <- scale(df[,grep("DC", names(df))]) 
-#convert the scaled data to a dataframe
-scaledData <- as.data.frame(scaledData) 
- #add the geneSymbol column to the scaled data
-scaledData <- cbind(df[,"geneSymbol"],scaledData)
-#rename the first column to geneSymbol
-names(scaledData)[1] <- "geneSymbol" 
+#get a metrix by removing all the columns that are not DC from the dataframe and trasfose the matr 
+scaledData <- df[,grep("DC", names(df))] 
 
+#trasfose the matrix 
+scaledData <- scaledData %>% t() 
 
-# data is in long format, so we need to pivot it to wide format
-longerDataForPlot <- scaledData[1:50,] %>%
+#scale the data
+scaledData <- scale(scaledData, center = TRUE, scale = TRUE)
+
+#trasfose the matrix back 
+scaledData <- scaledData %>% t() 
+
+#trasfose the matrix to a dataframe
+scaledData <- as.tibble(scaledData)
+
+# Add the geneSymbol column to the scaled data
+scaledData <- cbind(df[,"name"],scaledData)
+
+scaledData <- as.tibble(scaledData)
+
+#rename the first column to name
+names(scaledData)[1] <- "name"
+
+#now i can subset the first 50 genes and plot them
+sampleData <- scaledData[1:50,]
+
+#tranform the data to long format
+longerDataForPlot <- sampleData %>%
   pivot_longer(
     cols = c(grep("DC", names(scaledData))), 
     names_to = "sample", 
     values_to = "log2Count"
-  ) %>% select(c("sample","geneSymbol","log2Count"))
+  ) %>% select(c("sample","name","log2Count"))
 
-#plot a boxplot of the scaled expression of the first 50 genes
-ggplot(longerDataForPlot, aes(x = sample, y = log2Count, fill = geneSymbol)) +
+# and plot the box plot x= genes y= log2Count and fill = geneSymbol
+p1 <- ggplot(longerDataForPlot, aes(x = name, y = log2Count)) +
   geom_boxplot() +
-  labs(title = "Boxplot of the scaled expression of the first 50 genes",
-       x = "Sample",
-       y = "Scaled log2 gene expression levels") +
-  theme_bw() %>% print()
+  labs(title = "scales data bt genes (first 50 genes)",
+       x = "Genes",
+       y = "Gene expression") +
+  theme_dark()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(-0.2,0.2)
+print(p1)
 
 
-#this part im super nt sure about !!!!
+
+```
+
+
+
+```{r namweee}
+#$$$$$$$$$$$$$$$$$$$$$$$
+#get a metrix by removing all the columns that are not DC from the dataframe and trasfose the matr 
+scaledData <- df[,grep("DC", names(df))] 
+
+#trasfose the matrix 
+scaledData <- scale(scaledData, center = TRUE, scale = TRUE)
+
+#trasfose the matrix to a dataframe
+scaledData <- as.tibble(scaledData)
+
+# Add the geneSymbol column to the scaled data
+scaledData <- cbind(df[,"name"],scaledData)
+
+scaledData <- as.tibble(scaledData)
+
+#rename the first column to name
+names(scaledData)[1] <- "name"
+
+#now i can subset the first 50 genes and plot them
+sampleData <- scaledData[1:50,]
+
+#tranform the data to long format
+longerDataForPlot <- sampleData %>%
+  pivot_longer(
+    cols = c(grep("DC", names(scaledData))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","name","log2Count"))
+
+# and plot the box plot x= genes y= log2Count and fill = geneSymbol
+p1 <- ggplot(longerDataForPlot, aes(x = name, y = log2Count)) +
+  geom_boxplot() +
+  labs(title = "scales data bt genes (first 50 genes)",
+       x = "Genes",
+       y = "Gene expression") +
+  theme_dark()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+print(p1)
 ```
 
 ***
@@ -569,18 +640,9 @@ The expected output is a clustering of the different treatments or conditions ba
 ```{r kmeans-sample}
 set.seed(2020)
 #calculate the kmeans across the samples for k=3 clusters
-kmeansClust <- kmeans(scaledData[,grep("DC", names(scaledData))], centers = 3)
+kmeansClust <- kmeans(df[,grep("DC", names(df))], centers = 3)
 #add the kmeans clusters to the scaled data
-scaledData$cluster <- kmeansClust$cluster
-
-ggplot(longerDataForPlot, aes(x = sample, y = log2Count, fill = factor(cluster))) +
-  geom_point(position = position_jitterdodge(), alpha = 0.5) +
-  labs(title = "Kmeans clusters of the top2000 most varying genes",
-       x = "Sample",
-       y = "Scaled log2 gene expression levels") + 
-  theme_bw() %>% print()
-
-
+df$cluster <- kmeansClust$cluster
 
 ```
 
@@ -588,99 +650,26 @@ ggplot(longerDataForPlot, aes(x = sample, y = log2Count, fill = factor(cluster))
 
 ```{r PCA-sample}
 #compute the PCA on the log2-normalized expression data for the top2000 most varying genes
-pca <- prcomp(scaledData[,grep("DC", names(scaledData))], scale = TRUE)
+pca <- prcomp(df[,grep("DC", names(df))], scale = TRUE)
+
 #add the PCA to the scaled data
-scaledData$pca1 <- pca$x[,1]
-scaledData$pca2 <- pca$x[,2]
-#plot the PCA
-pcaPlot <- ggplot(scaledData, aes(x = pca1, y = pca2, color = factor(cluster))) +
-  geom_point(alpha = 0.5) +
-  viridis::scale_color_viridis(discrete = TRUE) +
-  labs(title = "PCA on the top2000 most varying genes",
-       x = "PCA1",
-       y = "PCA2") + 
-  theme_bw() %>% print()
+df$PC1 <- pca$x[,1]
+df$PC2 <- pca$x[,2]
 
-#compute the PCA on the log2-normalized expression data for the top2000 most varying genes
-pca <- prcomp(scaledData[,grep("DC", names(scaledData))], scale = TRUE)
-#add the PCA to the scaled data
-scaledData$pca1 <- pca$x[,1]
-scaledData$pca2 <- pca$x[,2]
-#plot the PCA
-pcaPlot <- ggplot(scaledData, aes(x = pca1, y = pca2, color = factor(cluster))) +
-  geom_point(alpha = 0.5) +
-  viridis::scale_color_viridis(discrete = TRUE) +
-  labs(title = "PCA on the top2000 most varying genes",
-       x = "PCA1",
-       y = "PCA2") + 
-  theme_bw() +
-  
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[1]^2 * 100, 2), "%")), 
-            x = max(scaledData$pca1), y = max(scaledData$pca2), 
-            hjust = 1, vjust = 1, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[2]^2 * 100, 2), "%")), 
-            x = max(scaledData$pca1), y = min(scaledData$pca2), 
-            hjust = 1, vjust = -0.5, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[3]^2 * 100, 2), "%")), 
-            x = min(scaledData$pca1), y = max(scaledData$pca2), 
-            hjust = -0.5, vjust = 1, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[4]^2 * 100, 2), "%")), 
-            x = min(scaledData$pca1), y = min(scaledData$pca2), 
-            hjust = -0.5, vjust = -0.5, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[5]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[6]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[7]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[8]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[9]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[10]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[11]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[12]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[13]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[14]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[15]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[16]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[17]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[18]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[19]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black") +
-  geom_text(aes(label = paste0("Var: ", round(pca$sdev[20]^2 * 100, 2), "%")), 
-            x = mean(scaledData$pca1), y = mean(scaledData$pca2), 
-            hjust = 0, vjust = 0, size = 4, color = "black")
-
-grid.arrange(pcaPlot, ncol = 1)
+#plot the clusters and the PCA
+p1 <- ggplot(df, aes(x = PC1, y = PC2, color = as.factor(cluster))) +
+  geom_point() +
+  labs(title = "PCA on samples gene expression profile - Kmeans-Clusters",
+       x = "PC1",
+       y = "PC2") +
+  theme_dark() +
+  theme(legend.position = "bottom")
+print(p1)
 
 
 
-dev.off()
+
+
 ```
 
 Plotting the PCA:

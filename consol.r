@@ -258,3 +258,8 @@ scale(df[,grep("DC", names(df))],center = TRUE, scale = TRUE) %>% head()
 
 
 ?scale()
+
+
+
+
+
