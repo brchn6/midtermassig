@@ -345,18 +345,16 @@ gene has sufficient gene-expression (according to the above definition).
 **Q5** *How many genes were filtered out? retained?* 
 
 ```{r filter-lowexp}
-#use apply for run on the DATA "DC" columns and return a logical vector of log2 genes that are between 4 and 9
-fGenes <- apply(DATA[,grep("DC", names(DATA))], 2, function(x) {
-  #create a logical vector of log2 genes that are between 4 and 9
-  (x>=4 & x<=9)})
+fGenes <- DATA[,grep("DC", names(DATA))]
+fGenes <- fGenes[1:10,]
+#calculate the number of genes that have a log2 expression value greater than 4 
+fGenes <- (fGenes > 4)
+#make fGenes a logical vector
+fGenes <- apply(fGenes, 1, function(x) sum(x) >= 3)
 
-#add col to fgens that will sum the number of genes that are between 4 and 9
-fGenes <- fGenes %>% as.data.frame() 
-fGenes$sum <- rowSums(fGenes) #sum the number of genes that are between 4 and 9
-fGenes <- fGenes$sum >= 3 #create a logical vector of genes that have at least 3 samples with a value between 4 and 9
+testDATA <- DATA[fGenes,]
 
-DATA <- DATA[fGenes,] #filter the data using the fGenes vector and store it in a tmpdata variable
-
+# Filter the data using the Fgenes vector and store it in DATA
  #calculate the number of genes that were filtered out and retained
 NumGensFilteredOut <- length(fGenes) - nrow(DATA) #calculate the number of genes that were filtered out
 NumGensRetained <- nrow(DATA) #calculate the number of genes that were retained
@@ -370,8 +368,8 @@ longerDataForPlot <- DATA %>%
   ) %>% select(c("sample","geneSymbol","log2Count"))
 
 #plot the filtered data interactively using ggplotly by calling the functionForDesnetiPlot from the privious cell
-plot <- functionForDesnetiPlot(longerDataForPlot) %>% ggplotly()
-plot %>% print()
+plot <- functionForDesnetiPlot(longerDataForPlot)# %>% ggplotly()
+# plot %>% print() #run only on Rstudio athore wise it will stuck
 
 ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (19871)` and the number of genes that were retained is: `r NumGensRetained (8545)`"
 ```
@@ -408,7 +406,7 @@ functionToMake_tmp.data <- function(x) {
 tmp.data <- functionToMake_tmp.data(DATA)
 
 #this function is gonna get the tmp.data as input and return the log2.norm which is the tmp.data substracted by the minimum value of the dataframe
-functionToMake_log2.norm <- function(x) {
+functionToMake_log2.norm <- function(x) { # nolint
   log2.norm <- x
   # subtract the mean of each sample from all the sample values
   log2.norm[,grep("DC", names(x))] <- sweep(log2.norm[,grep("DC", names(x))], 1, apply(log2.norm[,grep("DC", names(log2.norm))], 1, min), "-")
@@ -450,7 +448,7 @@ of data processing (log2, filtered log2 and normalized).
 ```{r boxplot-filt, fig.height=4, fig.width=10}
 #this function is used to create a ggplot boxplot by inputting a dataframe
 functio_for_ggplot_boxplot <- function(x,title) {
-  ggplot(x,aes(x = sample, y = log2Count, fill = sample)) +
+  ggplot(x,aes(x = sample, y = log2Count, fill = guyisdusssh)) +
   geom_boxplot() +
   labs(title = title ,
        x = "Sample",  
@@ -464,7 +462,10 @@ functionTolongerDataForPlot <- function(x) {
       cols = c(grep("DC", names(x))), 
       names_to = "sample", 
       values_to = "log2Count"
-    ) %>% select(c("sample","geneSymbol","log2Count"))
+    )%>%
+    #add new column to the dataframe that will help to identify the treatment
+    mutate(guyisdusssh = substr(sample, 4, 5))%>%
+    select(c("sample","geneSymbol","log2Count","guyisdusssh"))
   return(longerDataForPlot)
 }
 
@@ -578,10 +579,8 @@ p1 <- ggplot(longerDataForPlot, aes(x = name, y = log2Count)) +
        x = "Genes",
        y = "Gene expression") +
   theme_dark()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(-0.2,0.2)
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
 print(p1)
-
 
 
 ```

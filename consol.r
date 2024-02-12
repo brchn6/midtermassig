@@ -263,3 +263,4 @@ scale(df[,grep("DC", names(df))],center = TRUE, scale = TRUE) %>% head()
 
 
 
+DATA [1:5,]
