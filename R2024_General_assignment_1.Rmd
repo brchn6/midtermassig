@@ -295,6 +295,7 @@ alpha = 0.3 and remove the line.
 *Hint: Useful functions `geom_density()` and `labs()`*
 
 ```{r density-plot}
+#THIs cell isnt changing the data only making a plot
 library(reshape2)
 #create a new object with the pivoted data that as three columns: sample, geneSymbol and log2Count
 longerDataForPlot <- DATA %>% 
@@ -323,7 +324,6 @@ functionForDesnetiPlot <- function(x){
 }
 
 DesnetiPlot<- functionForDesnetiPlot(longerDataForPlot) # the data must have col name log2Count and sample
-
 # print the plot
 print(DesnetiPlot)
 ```
@@ -345,20 +345,17 @@ gene has sufficient gene-expression (according to the above definition).
 **Q5** *How many genes were filtered out? retained?* 
 
 ```{r filter-lowexp}
-fGenes <- DATA[,grep("DC", names(DATA))]
-fGenes <- fGenes[1:10,]
 #calculate the number of genes that have a log2 expression value greater than 4 
-fGenes <- (fGenes > 4)
 #make fGenes a logical vector
-fGenes <- apply(fGenes, 1, function(x) sum(x) >= 3)
+fGenes <- apply(DATA[,grep("DC", names(DATA))], 1, function(x) sum(x > 4) >= 3)
 
-testDATA <- DATA[fGenes,]
+#filter the data using the fGenes vector and store it in DATA
+DATA <- DATA[fGenes,]
 
 # Filter the data using the Fgenes vector and store it in DATA
  #calculate the number of genes that were filtered out and retained
 NumGensFilteredOut <- length(fGenes) - nrow(DATA) #calculate the number of genes that were filtered out
 NumGensRetained <- nrow(DATA) #calculate the number of genes that were retained
-
 
 longerDataForPlot <- DATA %>% 
   pivot_longer(
@@ -396,10 +393,10 @@ a new object `log2.norm`.
 
 ```{r normalization}
 #this follw function is gonna get DATA as input and return the DATA substracted by the mean of each sample
-functionToMake_tmp.data <- function(x) {
+functionToMake_tmp.data <- function(x) { # nolint
   tmp.data <- x
   # subtract the mean of each sample from all the sample values
-  tmp.data[,grep("DC", names(x))] <- apply(x[,grep("DC", names(x))], 1, function(y){ y - mean(y)})
+  tmp.data[,grep("DC", names(x))] <- sweep(tmp.data[,grep("DC", names(x))], 1, apply(tmp.data[,grep("DC", names(tmp.data))], 1, mean), "-")
   return(tmp.data)
 }
 #callin the function to create the tmp.data
@@ -415,7 +412,6 @@ functionToMake_log2.norm <- function(x) { # nolint
 
 #callin the function to create the log2.norm
 log2.norm <- functionToMake_log2.norm(tmp.data)
-
 ```
 
 ***
@@ -470,13 +466,17 @@ functionTolongerDataForPlot <- function(x) {
 }
 
 DataForPlot1 <- functionTolongerDataForPlot(DATA)
-functio_for_ggplot_boxplot(DataForPlot1,"GeneExpration - Raw") %>% print()
+plot1<- functio_for_ggplot_boxplot(DataForPlot1,"GeneExpration - Raw") 
 
 DataForPlot2 <- functionTolongerDataForPlot(tmp.data)
-functio_for_ggplot_boxplot(DataForPlot2,"GeneExpration - Filtterd") %>% print()
+plot2<- functio_for_ggplot_boxplot(DataForPlot2,"GeneExpration - Filtterd") 
 
 DataForPlot3 <- functionTolongerDataForPlot(log2.norm)
-functio_for_ggplot_boxplot(DataForPlot3,"GeneExpration - Filtterd + norm") %>% print()
+plot3<- functio_for_ggplot_boxplot(DataForPlot3,"GeneExpration - Filtterd + norm") 
+
+
+library(gridExtra)
+grid.arrange(plot1, plot2, plot3, ncol = 3, top = "Boxplot of gene expression data of each sample",left = "log2 gene expression levels",bottom = "Sample",right = "Treatment",as.table = TRUE,clip = TRUE)
 
 
 #extra credit phase
@@ -553,50 +553,10 @@ scaledData <- scaledData %>% t()
 #trasfose the matrix to a dataframe
 scaledData <- as.tibble(scaledData)
 
-# Add the geneSymbol column to the scaled data
-scaledData <- cbind(df[,"name"],scaledData)
+#assign the scaled data to the df
+df[,grep("DC", names(df))] <- scaledData
+df <- df[,c("id","geneSymbol","DC.0hr.r1","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1","DC.6hr.r2","DC.6hr.r3","variance","name","desc","txLength")]
 
-scaledData <- as.tibble(scaledData)
-
-#rename the first column to name
-names(scaledData)[1] <- "name"
-
-#now i can subset the first 50 genes and plot them
-sampleData <- scaledData[1:50,]
-
-#tranform the data to long format
-longerDataForPlot <- sampleData %>%
-  pivot_longer(
-    cols = c(grep("DC", names(scaledData))), 
-    names_to = "sample", 
-    values_to = "log2Count"
-  ) %>% select(c("sample","name","log2Count"))
-
-# and plot the box plot x= genes y= log2Count and fill = geneSymbol
-p1 <- ggplot(longerDataForPlot, aes(x = name, y = log2Count)) +
-  geom_boxplot() +
-  labs(title = "scales data bt genes (first 50 genes)",
-       x = "Genes",
-       y = "Gene expression") +
-  theme_dark()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
-print(p1)
-
-
-```
-
-
-
-```{r namweee}
-#$$$$$$$$$$$$$$$$$$$$$$$
-#get a metrix by removing all the columns that are not DC from the dataframe and trasfose the matr 
-scaledData <- df[,grep("DC", names(df))] 
-
-#trasfose the matrix 
-scaledData <- scale(scaledData, center = TRUE, scale = TRUE)
-
-#trasfose the matrix to a dataframe
-scaledData <- as.tibble(scaledData)
 
 # Add the geneSymbol column to the scaled data
 scaledData <- cbind(df[,"name"],scaledData)
@@ -638,18 +598,33 @@ The expected output is a clustering of the different treatments or conditions ba
 
 ```{r kmeans-sample}
 set.seed(2020)
+#create a new Transpose df so that genes are columns and samples are rows
+Tdf <- t(df[,grep("DC", names(df))])
 #calculate the kmeans across the samples for k=3 clusters
-kmeansClust <- kmeans(df[,grep("DC", names(df))], centers = 3)
-#add the kmeans clusters to the scaled data
-df$cluster <- kmeansClust$cluster
+kmeansClust <- kmeans(Tdf, centers = 3)
+
+
+
+#make mew df of the data:
+dataForPCAandKmenas <- data.frame()
+dataForPCAandKmenas <- data.frame(kmeansClust$cluster,rownames(Tdf))
+
+# plot the clusters with color
+p1 <- ggplot(dataForPCAandKmenas, aes(x = rownames.Tdf., fill = kmeansClust.cluster)) +
+  geom_bar() +
+  labs(title = "Kmeans Clusters",
+       x = "Sample",
+       y = "Count") +
+  theme_dark() +
+  theme(legend.position = "bottom")
+print(p1)
 
 ```
-
 ## Compute the PCA on the log2-normalized expression data for the top2000 most varying genes.
 
 ```{r PCA-sample}
 #compute the PCA on the log2-normalized expression data for the top2000 most varying genes
-pca <- prcomp(df[,grep("DC", names(df))], scale = TRUE)
+pca <- prcomp(df[,grep("DC", names(df))], scale = F)
 
 #add the PCA to the scaled data
 df$PC1 <- pca$x[,1]
