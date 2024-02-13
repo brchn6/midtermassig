@@ -449,7 +449,8 @@ functio_for_ggplot_boxplot <- function(x,title) {
   labs(title = title ,
        x = "Sample",  
        y = "log2 gene expression levels") +
-  theme_bw()
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 }
 
 functionTolongerDataForPlot <- function(x) {
@@ -604,7 +605,6 @@ Tdf <- t(df[,grep("DC", names(df))])
 kmeansClust <- kmeans(Tdf, centers = 3)
 
 
-
 #make mew df of the data:
 dataForPCAandKmenas <- data.frame()
 dataForPCAandKmenas <- data.frame(kmeansClust$cluster,rownames(Tdf))
@@ -619,6 +619,11 @@ p1 <- ggplot(dataForPCAandKmenas, aes(x = rownames.Tdf., fill = kmeansClust.clus
   theme(legend.position = "bottom")
 print(p1)
 
+
+
+#create a metadata df to make the PCA
+metadata <- data.frame()
+metadata <- data.frame(rownames(Tdf),kmeansClust$cluster)
 ```
 ## Compute the PCA on the log2-normalized expression data for the top2000 most varying genes.
 
@@ -627,23 +632,35 @@ print(p1)
 pca <- prcomp(df[,grep("DC", names(df))], scale = F)
 
 #add the PCA to the scaled data
-df$PC1 <- pca$x[,1]
-df$PC2 <- pca$x[,2]
-
-#plot the clusters and the PCA
-p1 <- ggplot(df, aes(x = PC1, y = PC2, color = as.factor(cluster))) +
-  geom_point() +
-  labs(title = "PCA on samples gene expression profile - Kmeans-Clusters",
-       x = "PC1",
-       y = "PC2") +
-  theme_dark() +
-  theme(legend.position = "bottom")
-print(p1)
+metadata$PC1 <- pca$rotation[,1]
+metadata$PC2 <- pca$rotation[,2]
 
 
+# aDD COL TO METADATA
+metadata$rownames.Tdf. <- rownames(Tdf) %>% substr(., 4, 5)
+
+#plot the PCA color by the cluster
+plot1<- ggplot(metadata, aes(x = PC1, y = PC2, color = as.factor(kmeansClust.cluster))) +
+geom_point() +
+#add the variance explained by each PC on the axis
+labs(title = "PCA on samples gene expression profile",
+     x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
+     y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = "")) +
+theme_bw() +
+theme(legend.position = "bottom")
+
+#plot the PCA color by the treatment
+plot2<- ggplot(metadata, aes(x = PC1, y = PC2, color = as.factor(rownames.Tdf.))) +
+geom_point() +
+#add the variance explained by each PC on the axis
+labs(title = "PCA on samples gene expression profile",
+     x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
+     y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = "")) +
+theme_bw() +
+theme(legend.position = "bottom")
 
 
-
+grid.arrange(plot1, plot2, ncol = 2, top = "PCA on samples gene expression profile",left = "PC1",bottom = "PC2",right = "Treatment",as.table = TRUE,clip = TRUE)
 ```
 
 Plotting the PCA:
