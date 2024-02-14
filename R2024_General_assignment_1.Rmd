@@ -706,7 +706,27 @@ treatment compared to time point 0 (untreated).
 frame
 
 ```{r calculate statistics}
-"YOUR_CODE"
+#in this cell im gonna work on the log2.norm dataframe
+
+#find the mean gene expression by groups of samples at times 0 and 6
+mean0 <- log2.norm[,grep("DC.0hr", names(log2.norm))] %>% 
+  apply(1, mean)
+mean6 <- log2.norm[,grep("DC.6hr", names(log2.norm))] %>%
+  apply(1, mean)
+
+#subtract the mean of t0 from the mean of t6 to find the logFCH
+logFCH <- mean6 - mean0
+
+#perform two tailed t.tests over the samples and extract the p-value alpha = 0.05
+pval <- apply(log2.norm[,grep("DC", names(log2.norm))], 1, function(x) t.test(x[1:3], x[7:9])$p.value)
+t.test(log2.norm[,grep("DC", names(log2.norm))], mu = 0, alternative = "two.sided")
+
+# Calculate the -log10 p-value (-log10pVal)
+log10pVal <- -log10(pval)
+
+#Add the logFCH and -log10pval as columns to the log normalized expression data frame
+log2.norm$logFCH <- logFCH
+log2.norm$log10pVal <- log10pVal
 ```
 
 ## Define subgroups of interest. 
@@ -721,7 +741,13 @@ the original DATA (all genes with the word "interferon" in their description)
 or not
 
 ```{r kmeans-genes}
-"YOUR_CODE"
+#Define a group of highly upregulated genes as genes with logFCH higher than 4 and -log10pval higher than 4
+log2.norm$upregulated <- log2.norm$logFCH > 4 & log2.norm$log10pVal > 4
+#Create a column in the data frame classifying genes as upregulated or not upregulated
+log2.norm$upregulated <- ifelse(log2.norm$upregulated, "upregulated", "other")
+
+log2.norm$interferon <- grepl("interferon", DATA$desc, ignore.case = TRUE)
+
 ```
 
 ## Show a volcano plot of the change in gene expression at t6
@@ -733,8 +759,19 @@ or not
 **Q6** How many genes are upregulated in t6?
 
 ```{r volcano plot 1}
-"YOUR_CODE"
-ANSWER6 = ""
+#plot the volcano plot
+log2.norm[1:5,]
+
+p1 <- ggplot(log2.norm, aes(x = logFCH, y = log10pVal, color = upregulated)) +
+  geom_point() +
+  labs(title = "Volcano plot - Dendritic cells logFCH after 6h LPS",
+       x = "logFCH",
+       y = "-log10 pval",
+       color = "Gene category") +
+  theme_gray() +
+  theme(legend.position = "right")
+print(p1)
+ANSWER6 = "The number of genes that are upregulated in t6 is:  `r sum(log2.norm$upregulated == 'upregulated')`(55)"
 ```
 
 ## Show the same volcano plot now with interferon related genes highlighted in color
