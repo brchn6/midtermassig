@@ -619,7 +619,7 @@ p1 <- ggplot(dataForPCAandKmenas, aes(x = rownames.Tdf., fill = kmeansClust.clus
        y = "Count") +
   theme_dark() +
   theme(legend.position = "bottom")
-print(p1)
+# print(p1)
 
 
 
@@ -637,32 +637,33 @@ pca <- prcomp(df[,grep("DC", names(df))], scale = F)
 metadata$PC1 <- pca$rotation[,1]
 metadata$PC2 <- pca$rotation[,2]
 
-
 # aDD COL TO METADATA
 metadata$rownames.Tdf. <- rownames(Tdf) %>% substr(., 4, 5)
 
+# flip the meta to get the pca plot 180 degree fliped
+metadata$PC1 <- metadata$PC1 * -1
+
 #plot the PCA color by the cluster
 plot1<- ggplot(metadata, aes(x = PC1, y = PC2, color = as.factor(kmeansClust.cluster))) +
-geom_point() +
-#add the variance explained by each PC on the axis
-labs(title = "PCA on samples gene expression profile",
-     x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
-     y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = "")) +
-theme_bw() +
-theme(legend.position = "bottom")
+  geom_point() +
+  labs(title = "PCA on samples gene expression \nprofile prc Treatment",
+    x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
+    y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = ""),
+    color = "Clusters") +
+  theme_gray() +
+  theme(legend.position = "right") + theme(plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"))
 
 #plot the PCA color by the treatment
 plot2<- ggplot(metadata, aes(x = PC1, y = PC2, color = as.factor(rownames.Tdf.))) +
-geom_point() +
-#add the variance explained by each PC on the axis
-labs(title = "PCA on samples gene expression profile",
-     x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
-     y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = "")) +
-theme_bw() +
-theme(legend.position = "bottom")
+  geom_point() +
+  labs(title = "PCA on samples gene expression \nprofile prc Treatment",
+    x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
+    y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = ""),
+    color = "Treatment") +
+  theme_gray() +
+  theme(legend.position = "right") + theme(plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"))  
 
 
-grid.arrange(plot1, plot2, ncol = 2, top = "PCA on samples gene expression profile",left = "PC1",bottom = "PC2",right = "Treatment",as.table = TRUE,clip = TRUE)
 ```
 
 Plotting the PCA:
@@ -677,8 +678,8 @@ percentage of variance is explained.*
   - Make sure the legends are clear to differentiate between plots
   - Use `grid.arrange()` from package ***gridExtra*** to put the plots side by side.
 
-```{r, PCA-plot, fig.height= 5, fig.width=10}
-"YOUR_CODE"
+```{r, PCA-plot, fig.height= 5, fig.width=10}# add the plot to the grid
+grid.arrange(plot1, plot2, ncol = 2)
 ```
 
 ***
