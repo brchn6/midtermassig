@@ -442,15 +442,17 @@ of data processing (log2, filtered log2 and normalized).
 - Use `facet_wrap()` to create three separate panels, one for each step of normalization
 
 ```{r boxplot-filt, fig.height=4, fig.width=10}
-#this function is used to create a ggplot boxplot by inputting a dataframe
-functio_for_ggplot_boxplot <- function(x,title) {
-  ggplot(x,aes(x = sample, y = log2Count, fill = guyisdusssh)) +
-  geom_boxplot() +
-  labs(title = title ,
-       x = "Sample",  
-       y = "log2 gene expression levels") +
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+#this function is used to create a ggplot boxplot by inputting a dataframe without legand
+functio_for_ggplot_boxplot <- function(x, title) {
+  p1 <- ggplot(x, aes(x = sample, y = log2Count, fill = guyisdusssh)) +
+    geom_boxplot() +
+    labs(title = title,
+         x = "",
+         y = "") +
+    theme_gray() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
+    theme(legend.position = "none")
+  return(p1)
 }
 
 functionTolongerDataForPlot <- function(x) {
@@ -477,7 +479,7 @@ plot3<- functio_for_ggplot_boxplot(DataForPlot3,"GeneExpration - Filtterd + norm
 
 
 library(gridExtra)
-grid.arrange(plot1, plot2, plot3, ncol = 3, top = "Boxplot of gene expression data of each sample",left = "log2 gene expression levels",bottom = "Sample",right = "Treatment",as.table = TRUE,clip = TRUE)
+grid.arrange(plot1, plot2, plot3, ncol = 3, top = "",left = "log2 gene expression levels",bottom = "Sample",as.table = TRUE,clip = TRUE)
 
 
 #extra credit phase
@@ -578,7 +580,6 @@ longerDataForPlot <- sampleData %>%
     values_to = "log2Count"
   ) %>% select(c("sample","name","log2Count"))
 
-# and plot the box plot x= genes y= log2Count and fill = geneSymbol
 p1 <- ggplot(longerDataForPlot, aes(x = name, y = log2Count)) +
   geom_boxplot() +
   labs(title = "scales data bt genes (first 50 genes)",
@@ -587,6 +588,7 @@ p1 <- ggplot(longerDataForPlot, aes(x = name, y = log2Count)) +
   theme_dark()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
 print(p1)
+#done with this cell
 ```
 
 ***
