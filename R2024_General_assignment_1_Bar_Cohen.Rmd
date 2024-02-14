@@ -1,0 +1,886 @@
+---
+title: "General Assignment 1"
+subtitle: "Analysis of RNA-seq timecourse experiment"
+author: "Bar Cohen"
+date: "Feb 2024"
+output:
+  html_document:
+    highlight: tango
+    number_sections: yes
+    theme: readable
+    toc: yes
+    toc_depth: 1
+editor_options: 
+  chunk_output_type: console
+---
+```{r}
+
+```
+
+<!-- Headers -->
+<style type="text/css">
+  h1{ font-size: 22pt; }
+  h2{ font-size: 16pt; }
+  h3{ font-size: 14pt; }
+  h4{ font-size: 12pt; }
+  h5{ font-size: 10pt;  }
+  h6{ font-size: 10pt;  }
+  .credits{ 
+    color: blue;
+    font-size: 18pt; 
+    font-weight: bold;
+  }
+
+</style>
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, 
+                      collapse = TRUE, 
+                      tidy=TRUE, 
+                      fig.align = 'center', 
+                      fig.height=7, 
+                      fig.width=7)
+```
+***
+
+# Instructions (README FIRST) {.tabset}
+
+## Dataset Description
+
+**Expression profiling data of mouse cells**
+
+Manually download the file *"Assignment1-DendriticCellsDataset.txt"* and 
+save it to your working directory where your Rmd document should also be saved.
+*The dataset file is located on the Moodle.*
+
+The dataset contains measurements of gene expression upon exposure of mouse 
+dendritic cells to lipopolysaccharide (LPS).
+LPS is present on the outer membrane of gram negative bacteria, and dendritic 
+cells elicit a strong immune response upon exposure to it.
+
+The measured variables are the gene expression profile following LPS exposure by 
+RNA-seq for:
+
+- **unexposed cells (time point 0)**
+- **cells after 3 hours** 
+- **cells after 6 hours**
+
+Each measurement is obtained for three independent biological replicates.
+
+## Submission Guidelines
+
+**Before submitting your answer to this assignment, make sure:**
+
+- To change the author field in the header of the Rmarkdown document to your name.
+- All plots have self-explanatory titles (or captions below).
+- Axes are properly labeled.
+- Values are represented in appropriate scale.
+- Try to add a legend if you are using colors (whenever possible).
+- Overall, plots should be readable and the data should be clearly shown.
+- Your answers are stored in the `ANSWERX` objects where X stands for the 
+  respective question number, and that the answer is printed at the end of the document after knitting.
+
+
+## Good Practice & Tips
+**Good practice and tips for code readability:**
+
+- DO NOT use absolute path to a file! (like "C:/Users/me/path/to/a/folder/the/TA/doesnt/have").
+- DO NOT set the working directory using a command line. Everything should work
+  from the place you run the code and place all the necessary files in the same folder.
+- Read the assignment instructions through the end before starting.
+- Try to follow the rule of 1 line of code = 1 operation.
+- Variable names should be concise (<15 characters), informative and consistent.
+
+***
+
+\newpage
+
+---
+
+
+# Setup & Data Preparation (10%)
+
+- Load the following packages: `pheatmap`,`ggplot2`,`reshape2`,`gridExtra`,`plotly` 
+- You may need to install some packages.
+
+**If you have not installed them yet, install them on your machine but DO NOT keep the command for installation in the submitted code.**
+
+## Read the delimited file "Assignment1-DendriticCellsDataset.txt" 
+
+- Store the content of the tabulated file into a dataframe object called `DATA`
+
+```{r, load-expdata,message=F}
+library(pheatmap)
+library(ggplot2)
+library(reshape2)
+library(gridExtra)
+library(tidyverse)
+library(plotly)
+
+#build the cwd path to get the file
+here <- getwd()
+if (here == "Y:/barc/MSc/R/midtermassig") {
+  DATA <- read.table("Assignment1-DendriticCellsDataset.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+} else {
+  DATA <- read.table(paste0(getwd(),"/Assignment1-DendriticCellsDataset.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+}
+```
+
+## Describe the dataset by answering questions Q1, Q2 and Q3
+**Q1** *How many rows and columns does the data have?*
+
+**Q2** *What do the rows and columns represent in this dataset?*
+
+**Q3** *What class of data is found in each column?*
+
+
+```{r ANSWERS 1-3}
+ANSWER1 = "the data has 14 columns (which are the samples) and 28416 rows(which are the genes)"
+ANSWER2 = "columns represent the samples and rows represent the genes"
+ANSWER3 = "id : integer,DC.0hr.r1 : numeric,DC.0hr.r2 : numeric,DC.0hr.r3 : numeric,DC.3hr.r1 : numeric,DC.3hr.r2 : numeric,DC.3hr.r3 : numeric,DC.6hr.r1 : numeric,DC.6hr.r2 : numeric,DC.6hr.r3 : numeric,geneSymbol : character,name : character,desc : character,txLength : integer"
+```
+
+## Change the column and row names for easier handling.
+
+- Rename the rows to the UCSC gene names (column 'name')
+- Rename the column names to a short easy to read version as described:
+*For example, RNA-seq data of* **D***endritic* **C***ells with LPS stimulation at* **t=0** **t=3hrs** *and at* **t=6hrs** *with* **3 replicates** *, columns could be:*
+`c("DC.0hr.r1"","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1"","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1"","DC.6hr.r2","DC.6hr.r3")`
+
+**Hint: Combine the use of functions `rep()` and `paste()` to generate the corresponding vector of names**
+
+For the next tasks, we will focus only on expression data.
+
+- Subset the dataframe and keep only columns with expression date and store it 
+as a separate dataframe named raw.data. 
+
+Make sure to keep the integrity of the data at all times (no sorting or deletion of rows), and maintain the row names as in the original dataset.
+
+```{r rename-data}
+RepNameFunction <- function(x) {
+  NewName <- names(x)
+  if (any(grepl("Lib*", NewName))) {
+    NewName <- NewName %>%
+      gsub("Lib151Humandendritic", "DC.", .) %>%
+      gsub("LPSrep*", "pop", .) %>%
+      gsub("pop", ".r", .) %>%
+      gsub("_IP", "", .)
+  } else {
+    OriName <- NewName
+  }
+  
+  names(x) <- NewName
+  return(x)}
+DATA <- RepNameFunction(DATA)
+
+```
+
+***
+
+# Data preprocessing : Visualization (20%)
+
+## Correlation of gene expression
+
+A good first view of our gene-expression data can be done by looking at the 
+correlation matrix of the samples. That is, how correlated are the measurements 
+in the different samples? If our experiment was done correctly, and our effect 
+is strong enough to elicit differences between treatments, we expect that replicate samples have higher correlation with each other than with different treatment group samples.
+
+**Pearson correlation** evaluates the linear relationship between two continuous variables.
+
+**Spearman correlation** evaluates the monotonic relationship and is based on the ranked values for each variable rather than the raw data
+
+- Compute the correlation matrix of gene expression across all samples and 
+replicates using **BOTH** the pearson and spearman correlations. 
+- Draw two heatmaps using the correlation matrixes of expression values (Pearson and Spearman) with the 
+function `pheatmap()` from the package ***pheatmap***.
+
+*hint: Use functions `cor(method = x)`, `pheatmap()`*
+
+**Q4** If you were to exclude one replicate from one time point based on the Pearson correlation, which would you exclude?
+
+```{r plot-cor}
+FunctionForCorMetSpe <- function(x){
+  corMat <- x[,grep("^DC", colnames(x))] %>% 
+    cor(method = "spearman")
+  return(corMat)
+}
+FunctionForCorMetpearson <- function(x){
+  corMat <- x[,grep("^DC", colnames(x))] %>% 
+    cor(method = "pearson")
+  return(corMat)
+}
+
+FunForGenHeatMap <- function(x,title){
+  x %>%
+    pheatmap(
+      color = colorRampPalette(c("#62a1db", "#e7d87d", "#dd9f40","#b4451f","#b01111"))(100),
+      cluster_rows = TRUE,
+      cluster_cols = TRUE,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
+      main = title
+    )
+    }
+
+FunctionForCorMetpearson(DATA) %>% FunForGenHeatMap("Pearson Correlation of gene expression") %>% print()
+FunctionForCorMetSpe(DATA) %>% FunForGenHeatMap("spearmen Correlation of gene expression") %>% print()
+
+ANSWER4 = "the most uncourent replicat is the 1st replicat of the 3rd hour and therefor i would exclude it"
+```
+
+# Data Processing : Transformation, filtering, Normalization (30%)
+
+## log2-transformation
+
+Biologically, PROPORTIONAL changes are more relevant than additive 
+changes. For this reason, we transform the gene-expression values to a logarithmic scale *(normally in doublings i.e. log2)*
+
+**Make sure to add 1 to ALL expression values before applying logarithmic transformation (to avoid log(0) ).**
+
+- Transform `raw.data` to log2 scale. Store it as a new object.
+
+```{r log2space}
+# log2 transformation
+funcLog2 <- function(x) {
+  LogDataToCol <- x[, grep("^DC", colnames(x))] %>%  # find all columns that start with DC
+    apply(2, function(y) log2(y + 1)) # apply log2 to each column and add 1 to each value
+  x[, grep("^DC", colnames(x))] <- LogDataToCol # replace the columns with the log2 transformed columns
+  return(x) # return the new dataframe
+}
+DATA <- funcLog2(DATA)  # apply the function to the data and store it in a DATA variable
+```
+
+## Gene expression density estimation
+
+A density plot shows us a smooth distribution which is 
+[estimated using our data](https://en.wikipedia.org/wiki/Kernel_density_estimation);
+
+In a nutshell, it is a smoothed version of a histogram. The area below the 
+generated curve is equal to 1, representing the cumulative probability of 
+observing all the data points.
+
+- Using ggplot, make a density plot that shows the log2 gene-expression levels 
+as a density distribution curve for each sample. 
+
+Since ggplot2 requires one observation per row (one column containing all the 
+values to be plotted on a certain axis), you need to change the data frame, 
+currently containing 9 observations per row. 
+
+*hint: Use the function* **melt()** *from the* **reshape2** *package.*
+
+- To use as id variable for the melt function, add a new column of gene names (using the row names).
+- Change the parameters of melt() so that the value column name describes the 
+type of data (i.e. "log2.data")
+- Change the parameters of the geom_density() function to set a transparency of 
+alpha = 0.3 and remove the line.
+- Use the "minimal" theme of ggplot.
+
+*Hint: Useful functions `geom_density()` and `labs()`*
+
+```{r density-plot}
+#THIs cell isnt changing the data only making a plot
+library(reshape2)
+#create a new object with the pivoted data that as three columns: sample, geneSymbol and log2Count
+longerDataForPlot <- DATA %>% 
+  pivot_longer(
+    cols = c(grep("DC", names(DATA))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","geneSymbol","log2Count"))
+
+#####################################
+#selp super importent notE!!!:
+# the vat log2.data is a dataframe with 3 columns: sample, geneSymbol and log2Count
+# row numer in 255744 which is the number of genes * 9 (the number of samples)
+#####################################
+
+# create the density plot named DesnetiPlot
+functionForDesnetiPlot <- function(x){
+  DesnetiPlot <- x %>% 
+    ggplot(aes(x = log2Count, fill = sample)) +
+    geom_density(alpha = 0.3) +
+    labs(title = "Density plot of log2 gene expression levels -Raw",
+         x = "log2.data",
+         y = "Density") +
+    theme_bw()
+  return(DesnetiPlot)
+}
+
+DesnetiPlot<- functionForDesnetiPlot(longerDataForPlot) # the data must have col name log2Count and sample
+# print the plot
+print(DesnetiPlot)
+```
+
+Note the high density of gene expression close to zero, *i.e.* low-expressing genes.
+Genes with low-expression across most samples/replicates should be filtered out.
+
+## Filter out low-expression genes in log2-normalized expression data
+
+**Sufficient gene expression will be defined as log2 expression value greater than 4 in at least 3 of the 9 measurements**
+
+- Make a subset variable `fGenes` with logical values to indicate whether each 
+gene has sufficient gene-expression (according to the above definition).
+- Create a subset of the data using the `fGenes` vector, store it as a new variable.
+- Make a density plot like before, but excluding low-expression genes
+(use melt again on the filtered data). 
+- Make the plot interactive using **ggplotly()** from the plotly package.
+
+**Q5** *How many genes were filtered out? retained?* 
+
+```{r filter-lowexp}
+#calculate the number of genes that have a log2 expression value greater than 4 
+#make fGenes a logical vector
+fGenes <- apply(DATA[,grep("DC", names(DATA))], 1, function(x) sum(x > 4) >= 3)
+
+#filter the data using the fGenes vector and store it in DATA
+DATA <- DATA[fGenes,]
+
+# Filter the data using the Fgenes vector and store it in DATA
+ #calculate the number of genes that were filtered out and retained
+NumGensFilteredOut <- length(fGenes) - nrow(DATA) #calculate the number of genes that were filtered out
+NumGensRetained <- nrow(DATA) #calculate the number of genes that were retained
+
+longerDataForPlot <- DATA %>% 
+  pivot_longer(
+    cols = c(grep("DC", names(DATA))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","geneSymbol","log2Count"))
+
+
+
+# create the density plot named DesnetiPlot
+functionForDesnetiPlot <- function(x){
+  DesnetiPlot <- x %>% 
+    ggplot(aes(x = log2Count, fill = sample)) +
+    geom_density(alpha = 0.3) +
+    labs(title = "Density plot of log2 gene expression levels filtered",
+         x = "log2.data_filt",
+         y = "Density") +
+    theme_bw()
+  return(DesnetiPlot)
+}
+
+#plot the filtered data interactively using ggplotly by calling the functionForDesnetiPlot from the privious cell
+plot <- functionForDesnetiPlot(longerDataForPlot) 
+ggplotly(plot) 
+ANSWER5 = "The number of genes that were filtered out is:  `r NumGensFilteredOut (19871)` and the number of genes that were retained is: `r NumGensRetained (8545)`"
+```
+
+## Simple normalization by the mean 
+
+**Use the log2 transformed filtered data for the next steps**
+
+As proof of principle, we will normalize the raw gene expression values in two steps:
+
+1. First, subtract the mean of each sample from all the sample values.
+2. Second, subtract the minimum of all the values in the dataframe from all the
+dataframe values.
+
+In the end, the lower bound of the normalized expression values should be 0.
+
+- Subtract mean value from each sample and store it in a new object `tmp.data`
+- Subtract from `tmp.data` its minimum value and store the normalized values in 
+a new object `log2.norm`.
+
+*Hint: for this you can use `apply()` and the* **sweep()** 
+*function. This is a new function which you should learn to use on your own. Use* **?sweep** *to understand the input arguments and defaults.*
+*In sum, `sweep()` is used to apply a function to all rows/columns of a data frame (like apply) but with a different argument value for each row/column.*
+
+```{r normalization}
+#this follw function is gonna get DATA as input and return the DATA substracted by the mean of each sample
+functionToMake_tmp.data <- function(x) { # nolint
+  tmp.data <- x
+  # subtract the mean of each sample from all the sample values
+  tmp.data[,grep("DC", names(x))] <- sweep(tmp.data[,grep("DC", names(x))], 1, apply(tmp.data[,grep("DC", names(tmp.data))], 1, mean), "-")
+  return(tmp.data)
+}
+#callin the function to create the tmp.data
+tmp.data <- functionToMake_tmp.data(DATA)
+
+#this function is gonna get the tmp.data as input and return the log2.norm which is the tmp.data substracted by the minimum value of the dataframe
+functionToMake_log2.norm <- function(x) { # nolint
+  log2.norm <- x
+  # subtract the mean of each sample from all the sample values
+  log2.norm[,grep("DC", names(x))] <- sweep(log2.norm[,grep("DC", names(x))], 1, apply(log2.norm[,grep("DC", names(log2.norm))], 1, min), "-")
+  return(log2.norm)
+}
+
+#callin the function to create the log2.norm
+log2.norm <- functionToMake_log2.norm(tmp.data)
+```
+
+***
+
+## Plot the log2-transformed gene expression at each step of the processing 
+*(meaning one plot for raw, filtered and normalized expression).*
+
+***Using ggplot:***
+
+- Use melt() again to convert each wide dataframe to long format.
+- Make a boxplot of gene expression data of each sample BEFORE normalization AND
+filtering, colored by treatment (use melt again, and add a column identifying the treatment (t=0/3/6)).
+- Make a boxplot of gene expression data of each sample AFTER normalization but BEFORE filtering, colored by treatment (add a column identifying the treatment (t=0/3/6)).
+- Make a boxplot of gene expression data of each sample AFTER normalization AND filtering, colored by treatment (add a column identifying the treatment (t=0/3/6)).
+- Use `grid.arrange()` from package ***gridExtra*** to put all three plots side by side.
+
+## **BONUS task**: Alternative plot - the facet way (not mandatory):
+- Follow the instructions below for extra credit.
+- Create one dataframe in a melted format, that includes data from each step
+of data processing (log2, filtered log2 and normalized).
+- First, merge all three dataframes while making sure the column names are unique
+(add an identifier to each data frame column using `paste()`, i.e. "DC.0hr.r1.filt' before merging)
+- *Hint: try using the `merge()` parameter "by = 0".*
+- Then, use melt on the merged data set.
+- Make a boxplot of gene expression data for each sample, colored by treatment 
+(add a column identifying the treatment (t=0/3/6).
+- *Hint: try using substr() with sapply()`*
+- Use `facet_wrap()` to create three separate panels, one for each step of normalization
+
+```{r boxplot-filt, fig.height=4, fig.width=10}
+#this function is used to create a ggplot boxplot by inputting a dataframe without legand
+functio_for_ggplot_boxplot <- function(x, title) {
+  p1 <- ggplot(x, aes(x = sample, y = log2Count, fill = Treatment)) +
+    geom_boxplot() +
+    labs(title = title,
+         x = "",
+         y = "") +
+    theme_gray() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
+    theme(legend.position = "none")
+  return(p1)
+}
+
+functionTolongerDataForPlot <- function(x) {
+  longerDataForPlot <- x %>% 
+    pivot_longer(
+      cols = c(grep("DC", names(x))), 
+      names_to = "sample", 
+      values_to = "log2Count"
+    )%>%
+    #add new column to the dataframe that will help to identify the treatment
+    mutate(Treatment = substr(sample, 4, 5)) %>%
+    select(c("sample","geneSymbol","log2Count","Treatment"))
+  return(longerDataForPlot)
+}
+
+DataForPlot1 <- functionTolongerDataForPlot(DATA)
+plot1<- functio_for_ggplot_boxplot(DataForPlot1,"GeneExpration - Raw") 
+
+DataForPlot2 <- functionTolongerDataForPlot(tmp.data)
+plot2<- functio_for_ggplot_boxplot(DataForPlot2,"GeneExpration - Filtterd") 
+
+DataForPlot3 <- functionTolongerDataForPlot(log2.norm)
+plot3<- functio_for_ggplot_boxplot(DataForPlot3,"GeneExpration - Filtterd + norm") 
+
+
+library(gridExtra)
+grid.arrange(plot1, plot2, plot3, ncol = 3, top = "",left = "log2 gene expression levels",bottom = "Sample",as.table = TRUE,clip = TRUE)
+
+
+#extra credit phase
+#merge the dataframes
+DataForPlot1$orgin<- "Data BEFORE normalization\n AND filtering "
+DataForPlot2$orgin<- "Data BEFORE normalization\n AFTER filtering"
+DataForPlot3$orgin<- "Data AFTER normalization\n AND filtering"
+rbindOfAllData <- rbind(DataForPlot1,DataForPlot2,DataForPlot3)
+
+plot <- functio_for_ggplot_boxplot(rbindOfAllData, "Boxplot of gene expression data of each sampls") 
+plot <- plot + 
+  facet_wrap(~orgin, strip.position = "top", scales = "free_y") + 
+  theme_bw() +
+  labs(title = "Boxplot of gene expression data of each sample", x = "Sample", y = "log2 gene expression levels") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        strip.text = element_text(margin = margin(b = 20)))
+plot %>% print()
+```
+
+***
+
+> **IMPORTANT:** For the next parts of the analysis, you should ONLY use the 
+normalized-filtered log2 expression data!
+
+# Clustering on the samples (20%)
+
+## Subset the log2-normalized expression data for the top-2000 most varying genes.
+- Create a new variable containing the normalized-filtered log2 expression levels of the 2000 most varying genes.
+*Hint: Calculate the variance for each gene (based on the 9 value columns)*
+
+```{r topvar-genes}
+# to answer this Q i need to make a new var the help the original data
+# with the log2 norm value
+# then i will calculate the variance for each gene
+# SO LEST DO IT:
+df <- log2.norm
+
+#tranform df to be tible
+df <- as.tibble(df)
+
+#calculate the variance for each gene and adding t to the dataframe
+df$variance <- apply(df[,grep("DC", names(df))], 1, var)
+#bring the variance to the first column reoredering the dataframe co
+df <- df[,c("id","geneSymbol","DC.0hr.r1","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1","DC.6hr.r2","DC.6hr.r3","variance","name","desc","txLength")]
+#sort the dataframe by variance
+df <- df %>% 
+  arrange(desc(variance)) #sort the dataframe by variance
+
+#subset the df base on the top-2000 most varying genes
+df <- df[1:2000,]
+```
+
+## Scale and center gene expression
+
+- Scale and center the subset of expression of genes and across samples.
+- Plot a boxplot of the scaled expression of the first 50 genes.
+
+*Hint: Be careful, to use the correct dimension. scale() by default operates on *
+*the columns of the input matrix.*
+
+```{r scale-samples}
+#get a metrix by removing all the columns that are not DC from the dataframe and trasfose the matr 
+scaledData <- df[,grep("DC", names(df))] 
+
+#trasfose the matrix 
+scaledData <- scaledData %>% t() 
+
+#scale the data
+scaledData <- scale(scaledData, center = TRUE, scale = TRUE)
+
+#trasfose the matrix back 
+scaledData <- scaledData %>% t() 
+
+#trasfose the matrix to a dataframe
+scaledData <- as.tibble(scaledData)
+
+#assign the scaled data to the df
+df[,grep("DC", names(df))] <- scaledData
+df <- df[,c("id","geneSymbol","DC.0hr.r1","DC.0hr.r2","DC.0hr.r3","DC.3hr.r1","DC.3hr.r2","DC.3hr.r3","DC.6hr.r1","DC.6hr.r2","DC.6hr.r3","variance","name","desc","txLength")]
+
+
+# Add the geneSymbol column to the scaled data
+scaledData <- cbind(df[,"name"],scaledData)
+
+scaledData <- as.tibble(scaledData)
+
+#rename the first column to name
+names(scaledData)[1] <- "name"
+
+#now i can subset the first 50 genes and plot them
+sampleData <- scaledData[1:50,]
+
+#tranform the data to long format
+longerDataForPlot <- sampleData %>%
+  pivot_longer(
+    cols = c(grep("DC", names(scaledData))), 
+    names_to = "sample", 
+    values_to = "log2Count"
+  ) %>% select(c("sample","name","log2Count"))
+
+p1 <- ggplot(longerDataForPlot, aes(x = name, y = log2Count)) +
+  geom_boxplot() +
+  labs(title = "scales data bt genes (first 50 genes)",
+       x = "Genes",
+       y = "Gene expression") +
+  theme_dark()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+print(p1)
+#done with this cell
+```
+
+***
+
+# Kmeans and Principal Component Analysis (10%)
+
+## Calculate the kmeans across the samples for k=3 clusters (or centers) for the top2000 most varying genes.
+
+The expected output is a clustering of the different treatments or conditions based on gene expression.
+
+```{r kmeans-sample}
+set.seed(2020)
+#create a new Transpose df so that genes are columns and samples are rows
+Tdf <- t(df[,grep("DC", names(df))])
+#calculate the kmeans across the samples for k=3 clusters
+kmeansClust <- kmeans(Tdf, centers = 3)
+
+
+#make mew df of the data:
+dataForPCAandKmenas <- data.frame()
+dataForPCAandKmenas <- data.frame(kmeansClust$cluster,rownames(Tdf))
+
+# plot the clusters with color
+p1 <- ggplot(dataForPCAandKmenas, aes(x = rownames.Tdf., fill = kmeansClust.cluster)) +
+  geom_bar() +
+  labs(title = "Kmeans Clusters",
+       x = "Sample",
+       y = "Count") +
+  theme_dark() +
+  theme(legend.position = "bottom")
+# print(p1)
+
+
+
+#create a metadata df to make the PCA
+metadata <- data.frame()
+metadata <- data.frame(rownames(Tdf),kmeansClust$cluster)
+```
+## Compute the PCA on the log2-normalized expression data for the top2000 most varying genes.
+
+```{r PCA-sample}
+#compute the PCA on the log2-normalized expression data for the top2000 most varying genes
+pca <- prcomp(df[,grep("DC", names(df))], scale = F)
+
+#add the PCA to the scaled data
+metadata$PC1 <- pca$rotation[,1]
+metadata$PC2 <- pca$rotation[,2]
+
+# aDD COL TO METADATA
+metadata$rownames.Tdf. <- rownames(Tdf) %>% substr(., 4, 5)
+
+# flip the meta to get the pca plot 180 degree fliped
+metadata$PC1 <- metadata$PC1 * -1
+
+#plot the PCA color by the cluster
+plot1<- ggplot(metadata, aes(x = PC1, y = PC2, color = as.factor(kmeansClust.cluster))) +
+  geom_point() +
+  labs(title = "PCA on samples gene expression \nprofile prc Treatment",
+    x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
+    y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = ""),
+    color = "Clusters") +
+  theme_gray() +
+  theme(legend.position = "right") + theme(plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"))
+
+#plot the PCA color by the treatment
+plot2<- ggplot(metadata, aes(x = PC1, y = PC2, color = as.factor(rownames.Tdf.))) +
+  geom_point() +
+  labs(title = "PCA on samples gene expression \nprofile prc Treatment",
+    x = paste("PC1 (", round(summary(pca)$importance[2,1]*100,2), "%)", sep = ""),
+    y = paste("PC2 (", round(summary(pca)$importance[2,2]*100,2), "%)", sep = ""),
+    color = "Treatment") +
+  theme_gray() +
+  theme(legend.position = "right") + theme(plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm"))  
+
+
+```
+
+Plotting the PCA:
+
+*The title axis should say which principal component is represented and what
+percentage of variance is explained.*
+
+  - In the first plot color the points according to the kmeans clusters
+  - In the second plot color the points according to their treatments.
+  - Add the titles "PCA on samples gene expression profile - (Kmeans-Clusters | 
+  Treatment)" accordingly
+  - Make sure the legends are clear to differentiate between plots
+  - Use `grid.arrange()` from package ***gridExtra*** to put the plots side by side.
+
+```{r, PCA-plot, fig.height= 5, fig.width=10}# add the plot to the grid
+grid.arrange(plot1, plot2, ncol = 2)
+```
+
+***
+
+# Gene expression changes induced by treatment (10%)
+
+In this part we will look at changes in expression of genes at 6 hours of 
+treatment compared to time point 0 (untreated).
+
+**Important:** use the log2-normalized filtered data.
+
+## Calculate the change in gene expression between t0 and t6 and its significance
+
+*The change in expression should be expressed in log-fold-change (logFCH) between timepoint 0 and timepoint 6.*
+
+*The statistical significance of the change in expression should be expressed as the -log10 p-value (-log10pval)*
+
+- Find the mean gene expression by groups of samples at times 0 and 6.
+- Subtract the mean of t0 from the mean of t6 to find the logFCH
+- Perform two tailed t.tests over the samples and extract the p-value.
+* Hint: use the function `t.test()` and extract the p-value from its output. *
+- Calculate the -log10 p-value (-log10pVal)
+- Add the logFCH and -log10pval as columns to the log normalized expression data
+frame
+
+```{r calculate-statistics}
+###in this cell im gonna work on the log2.norm dataframe###
+
+#find the mean gene expression by groups of samples at times 0 and 6
+mean0 <- log2.norm[,grep("DC.0hr", names(log2.norm))] %>% 
+  apply(1, mean)
+mean6 <- log2.norm[,grep("DC.6hr", names(log2.norm))] %>%
+  apply(1, mean)
+
+#subtract the mean of t0 from the mean of t6 to find the logFCH
+# logFCH is a vector of the mean gene expression by groups of samples at times 0 and 6 
+# soon to be added to the log2.norm dataframe
+logFCH <- mean6 - mean0
+
+#perform two tailed t.tests over the samples and extract the p-value alpha = 0.05
+pval <- apply(log2.norm[,grep("DC", names(log2.norm))], 1, function(x) t.test(x[1:3], x[7:9])$p.value)
+
+# Calculate the -log10 p-value (-log10pVal)
+log10pVal <- -log10(pval)
+
+#Add the logFCH and -log10pval as columns to the log normalized expression data frame
+log2.norm$logFCH <- logFCH
+log2.norm$log10pVal <- log10pVal
+
+```
+
+## Define subgroups of interest. 
+
+- Define a group of highly upregulated genes as genes with logFCH higher than 4 
+and -log10pval higher than 4.
+- Create a column in the data frame classifying genes as upregulated or not 
+upregulated.
+- Find genes that are related to interferon by using the description column in 
+the original DATA (all genes with the word "interferon" in their description)
+- Create a column in the dataframe classifying genes as interferon-related 
+or not
+
+```{r kmeans-genes}
+#Define a group of highly upregulated genes as genes with logFCH higher than 4 and -log10pval higher than 4
+log2.norm$upregulated <- log2.norm$logFCH > 4 & log2.norm$log10pVal > 4
+
+#Create a column in the data frame classifying genes as upregulated or not upregulated
+log2.norm$upregulated <- ifelse(log2.norm$upregulated, "upregulated", "other")
+
+#Find genes that are related to interferon by using the description column in the original DATA
+log2.norm$interferon <- grepl("interferon", DATA$desc, ignore.case = TRUE)
+```
+
+
+## Show a volcano plot of the change in gene expression at t6
+
+- Use ggplot()
+- Change the color of the upregulated genes
+- Make the axis and legend labels clear
+
+**Q6** How many genes are upregulated in t6?
+
+```{r volcano plot 1}
+#plot the volcano plot
+p1 <- ggplot(log2.norm, aes(x = logFCH, y = log10pVal, color = upregulated)) +
+  geom_point() +
+  labs(title = "Volcano plot - Dendritic cells logFCH after 6h LPS",
+       x = "logFCH",
+       y = "-log10 pval",
+       color = "Gene category") +
+  theme_gray() +
+  theme(legend.position = "right")
+print(p1)
+
+functionlll <- function(x) {
+  return(x)
+}
+ANSWER6 = "The number of genes that are upregulated in t6 is:`r functionlll(sum(log2.norm$upregulated == 'upregulated'))`(55)"
+```
+
+
+## Show the same volcano plot now with interferon related genes highlighted in color
+- Make the plot interactive using **ggplotly()** from the plotly package.
+
+**Q7** How many interferon related genes are also upregulated by our definition? 
+
+**Q8** What can you say about interferon related genes in comparison with the rest of the genes? is our definition of upregulated genes too strict?
+
+```{r volcano plot 2}
+ANSWER7 = "The number of interferon related genes that are also upregulated by our definition is:(5)"
+ANSWER8 = "The interferon related genes are more likely to be upregulated than the rest of the genes. Our definition of upregulated genes is not too strict, as the number of upregulated genes is relatively low compared to the total number of genes."
+#plot the volcano plot
+p2 <- ggplot(log2.norm, aes(x = logFCH, y = log10pVal, color = interferon)) +
+  geom_point() +
+  labs(title = "Volcano plot - Dendritic cells logFCH after 6h LPS",
+       x = "logFCH",
+       y = "-log10 pval",
+       color = "Interferon related") +
+  theme_gray() +
+  theme(legend.position = "right")
+ggplotly(p2)
+
+
+```
+***
+
+# Answers area:
+
+## Your answers to the questions should appear here:
+
+Remember to use code to answer your questions whenever possible.
+
+<br>
+**Q1** *How many rows and columns does the data have?*
+
+A: **`r ANSWER1`**
+
+<br>
+
+**Q2** *What do the rows and columns represent in this dataset?* 
+
+A: **`r ANSWER2`**
+
+<br>
+
+**Q3** *What class of data is found in each column?*
+
+A: **`r ANSWER3`**
+
+<br>
+
+**Q4** *If you were to exclude one replicate based on correlation, which would you exclude?* 
+
+A: **`r ANSWER4`**
+
+<br> 
+
+**Q5** *How many genes were filtered out? retained?*  
+
+A: **`r ANSWER5`**
+
+<br>
+
+**Q6** *How many genes are upregulated in t6?* 
+
+A: **`r ANSWER6`**
+
+<br> 
+
+**Q7** *How many interferon related genes are also upregulated by our definition?* 
+
+A: **`r ANSWER7`**
+
+<br> 
+
+**Q8** *What can you say about interferon related genes in comparison with the rest of the genes? is our definition of upregulated genes too strict?*
+
+A: **`r ANSWER8`**
+
+<br> 
+
+***
+
+---
+
+<span class='credits' >
+Author Credits
+
+Original dataset from Broad Institute, MIT & Harvard
+
+Written by:
+
+* Yaara Finkel
+* Hugo Schweke
+* Shevie Rozman
+* Miguel Angel Garcia-Campos https://github.com/AngelCampos
+* Benjamin Dubreuil
+
+Under supervision of :
+
+* Dr. Schragi Schwartz
+* Dr. Yaron Anterbi
+
+</span>
+
+---
